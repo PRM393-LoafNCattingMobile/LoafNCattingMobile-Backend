@@ -1,0 +1,18 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# .NET build output
+**/bin/
+**/obj/
+TestResults/
+*.nupkg
+
+# Local connection string
+LoafNCatting.Api/appsettings.Development.json
