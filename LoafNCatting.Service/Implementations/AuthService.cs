@@ -1,6 +1,7 @@
 using LoafNCatting.Service.DTOs;
 using LoafNCatting.Service.Interfaces;
 using LoafNCatting.Service.Mappers;
+using LoafNCatting.Service.Auth;
 using LoafNCatting.Data.Models;
 using LoafNCatting.Data.Interfaces;
 
@@ -9,7 +10,8 @@ namespace LoafNCatting.Service.Implementations;
 public class AuthService(
     IUserRepository users,
     IRoleRepository roles,
-    IPasswordService passwordService) : IAuthService
+    IPasswordService passwordService,
+    ISessionTokenService sessionTokens) : IAuthService
 {
     public async Task<AuthResponseDto?> RegisterAsync(RegisterRequestDto request)
     {
@@ -34,7 +36,7 @@ public class AuthService(
 
         await users.AddAsync(user);
         await users.SaveChangesAsync();
-        return CafeDtoMapper.ToAuthResponse(user);
+        return CafeDtoMapper.ToAuthResponse(user, sessionTokens.IssueToken(user));
     }
 
     public async Task<AuthResponseDto?> LoginAsync(LoginRequestDto request)
@@ -47,7 +49,13 @@ public class AuthService(
             return null;
         }
 
-        return CafeDtoMapper.ToAuthResponse(user);
+        return CafeDtoMapper.ToAuthResponse(user, sessionTokens.IssueToken(user));
+    }
+
+    public Task LogoutAsync(string token)
+    {
+        sessionTokens.Revoke(token);
+        return Task.CompletedTask;
     }
 }
 

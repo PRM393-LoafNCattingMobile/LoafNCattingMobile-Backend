@@ -4,6 +4,7 @@ using LoafNCatting.Data.Interfaces;
 using LoafNCatting.Data.Repositories;
 using LoafNCatting.Service.Interfaces;
 using LoafNCatting.Service.Implementations;
+using LoafNCatting.Service.Auth;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +17,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddMemoryCache();
 
 builder.Services.AddCors(options =>
 {
@@ -53,6 +55,10 @@ builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IStoreLocationRepository, StoreLocationRepository>();
 builder.Services.AddScoped<ITableStatusRepository, TableStatusRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+
+var sessionTokenOptions = builder.Configuration.GetSection("SessionTokens").Get<SessionTokenOptions>() ?? new SessionTokenOptions();
+builder.Services.AddSingleton(sessionTokenOptions);
+builder.Services.AddSingleton<ISessionTokenService, InMemorySessionTokenService>();
 
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IAuthService, AuthService>();

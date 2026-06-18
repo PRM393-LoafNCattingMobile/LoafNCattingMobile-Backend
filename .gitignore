@@ -16,3 +16,5 @@ TestResults/
 
 # Local connection string
 LoafNCatting.Api/appsettings.Development.json
+LoafNCatting.Api/backend.out.log
+*.log

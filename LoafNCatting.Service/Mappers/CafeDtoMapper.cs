@@ -5,7 +5,7 @@ namespace LoafNCatting.Service.Mappers;
 
 public static class CafeDtoMapper
 {
-    public static AuthResponseDto ToAuthResponse(User user)
+    public static AuthResponseDto ToAuthResponse(User user, string token)
     {
         return new AuthResponseDto(
             user.UserId,
@@ -13,7 +13,7 @@ public static class CafeDtoMapper
             user.Email,
             user.PhoneNumber,
             user.Role.RoleName,
-            Convert.ToBase64String(Guid.NewGuid().ToByteArray()));
+            token);
     }
 
     public static CategoryDto ToCategoryDto(Category category)

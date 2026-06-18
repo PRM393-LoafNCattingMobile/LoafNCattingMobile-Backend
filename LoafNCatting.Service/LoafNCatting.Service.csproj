@@ -10,4 +10,8 @@
     <ProjectReference Include="..\LoafNCatting.Data\LoafNCatting.Data.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
 </Project>
