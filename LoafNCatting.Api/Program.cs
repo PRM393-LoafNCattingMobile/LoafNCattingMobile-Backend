@@ -6,6 +6,7 @@ using LoafNCatting.Service.Interfaces;
 using LoafNCatting.Service.Implementations;
 using LoafNCatting.Service.Auth;
 using Microsoft.EntityFrameworkCore;
+using Net.payOS;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +69,13 @@ builder.Services.AddScoped<ICatService, CatService>();
 builder.Services.AddScoped<ITableService, TableService>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+
+var payosConfig = builder.Configuration.GetSection("PayOS");
+builder.Services.AddSingleton(new PayOS(
+    payosConfig["ClientId"] ?? throw new InvalidOperationException("PayOS:ClientId is not configured"),
+    payosConfig["ApiKey"] ?? throw new InvalidOperationException("PayOS:ApiKey is not configured"),
+    payosConfig["ChecksumKey"] ?? throw new InvalidOperationException("PayOS:ChecksumKey is not configured")));
+builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IStoreLocationService, StoreLocationService>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
