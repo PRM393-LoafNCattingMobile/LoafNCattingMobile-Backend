@@ -60,13 +60,17 @@ public class OrderService(
         }
 
         order.TotalPrice = order.OrderDetails.Sum(item => item.Subtotal);
+
+        // Đơn chuyển khoản đi qua PayOS nên để trạng thái "Đang chờ thanh toán";
+        // các phương thức còn lại (tiền mặt...) coi như đã thanh toán ngay như demo cũ.
+        var requiresOnlinePayment = method.MethodName.Contains("Chuyển khoản", StringComparison.OrdinalIgnoreCase);
         order.Payments.Add(new Payment
         {
             PaymentAmount = order.TotalPrice,
             MethodId = method.MethodId,
-            PaymentStatus = "Đã thanh toán",
-            TransactionCode = $"DEMO-{DateTime.UtcNow:yyyyMMddHHmmss}",
-            PaidAt = DateTime.UtcNow
+            PaymentStatus = requiresOnlinePayment ? "Đang chờ thanh toán" : "Đã thanh toán",
+            TransactionCode = requiresOnlinePayment ? null : $"DEMO-{DateTime.UtcNow:yyyyMMddHHmmss}",
+            PaidAt = requiresOnlinePayment ? null : DateTime.UtcNow
         });
 
         await orders.AddAsync(order);
