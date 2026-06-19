@@ -18,3 +18,4 @@ TestResults/
 LoafNCatting.Api/appsettings.Development.json
 LoafNCatting.Api/backend.out.log
 *.log
+LoafNCatting.Api/appsettings.json
