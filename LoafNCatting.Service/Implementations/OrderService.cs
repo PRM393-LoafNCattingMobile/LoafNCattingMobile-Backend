@@ -79,10 +79,12 @@ public class OrderService(
             order.OrderDetails.Add(new OrderDetail
             {
                 ProductId = product.ProductId,
+                Product = product,
                 Quantity = item.Quantity,
                 UnitPrice = unitPrice,
                 Subtotal = unitPrice * item.Quantity
             });
+
         }
 
         order.TotalPrice = order.OrderDetails.Sum(item => item.Subtotal);

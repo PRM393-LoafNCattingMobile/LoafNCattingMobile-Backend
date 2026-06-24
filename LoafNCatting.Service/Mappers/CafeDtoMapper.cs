@@ -33,7 +33,8 @@ public static class CafeDtoMapper
             product.Picture,
             product.CategoryId,
             product.Category.Name,
-            product.IsAvailable);
+            product.IsAvailable,
+            product.IsAvailable && product.UnitInStock > 0);
     }
 
     public static CatDto ToCatDto(Cat cat)
@@ -99,6 +100,25 @@ public static class CafeDtoMapper
             order.OrderStatus.OrderStatusName,
             paymentStatus,
             details);
+    }
+
+    public static CartDto ToCartDto(Cart cart)
+    {
+        var items = cart.CartItems
+            .OrderBy(item => item.CreatedAt)
+            .Select(item => new CartItemDto(
+                ToProductDto(item.Product),
+                item.Quantity,
+                item.UnitPrice,
+                item.UnitPrice * item.Quantity))
+            .ToList();
+
+        return new CartDto(
+            cart.CartId,
+            cart.UserId,
+            items.Sum(item => item.Quantity),
+            items.Sum(item => item.Subtotal),
+            items);
     }
 
     public static NotificationDto ToNotificationDto(Notification notification)
