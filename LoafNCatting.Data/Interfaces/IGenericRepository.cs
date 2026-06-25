@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace LoafNCatting.Data.Interfaces;
@@ -11,6 +12,7 @@ public interface IGenericRepository<T> where T : class
     void Delete(T entity);
     Task<int> SaveChangesAsync();
     Task<IDbContextTransaction> BeginTransactionAsync();
+    Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel);
 }
 
 

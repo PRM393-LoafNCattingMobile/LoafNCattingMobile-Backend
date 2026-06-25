@@ -13,10 +13,10 @@ public class NotificationService(INotificationRepository notifications) : INotif
         return items.Select(CafeDtoMapper.ToNotificationDto).ToList();
     }
 
-    public async Task<bool> MarkNotificationReadAsync(int notificationId)
+    public async Task<bool> MarkNotificationReadAsync(int notificationId, int userId)
     {
         var notification = await notifications.GetByIdAsync(notificationId);
-        if (notification is null)
+        if (notification is null || notification.UserId != userId)
         {
             return false;
         }

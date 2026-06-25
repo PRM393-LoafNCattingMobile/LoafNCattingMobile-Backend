@@ -1,3 +1,4 @@
+using System.Data;
 using LoafNCatting.Service.DTOs;
 using LoafNCatting.Service.Interfaces;
 using LoafNCatting.Service.Mappers;
@@ -20,11 +21,41 @@ public class OrderService(
             return null;
         }
 
-        var productIds = request.Items.Select(item => item.ProductId).Distinct().ToList();
+        var requestedItems = request.Items
+            .GroupBy(item => item.ProductId)
+            .Select(group => new OrderItemRequestDto(group.Key, group.Sum(item => item.Quantity)))
+            .ToList();
+
+        if (requestedItems.Any(item => item.Quantity <= 0))
+        {
+            return null;
+        }
+
+        var productIds = requestedItems.Select(item => item.ProductId).ToList();
+        await using var transaction = await orders.BeginTransactionAsync(IsolationLevel.Serializable);
         var productItems = await products.GetByIdsAsync(productIds);
 
         if (productItems.Count != productIds.Count)
         {
+            await transaction.RollbackAsync();
+            return null;
+        }
+
+        foreach (var item in requestedItems)
+        {
+            var product = productItems.First(product => product.ProductId == item.ProductId);
+            if (!product.IsAvailable || product.UnitInStock < item.Quantity)
+            {
+                await transaction.RollbackAsync();
+                return null;
+            }
+        }
+
+        var stockReserved = await products.TryReserveStockAsync(
+            requestedItems.ToDictionary(item => item.ProductId, item => item.Quantity));
+        if (!stockReserved)
+        {
+            await transaction.RollbackAsync();
             return null;
         }
 
@@ -41,14 +72,9 @@ public class OrderService(
             OrderStatusId = status.OrderStatusId
         };
 
-        foreach (var item in request.Items)
+        foreach (var item in requestedItems)
         {
             var product = productItems.First(product => product.ProductId == item.ProductId);
-            if (!product.IsAvailable || product.UnitInStock <= 0 || item.Quantity <= 0)
-            {
-                return null;
-            }
-
             var unitPrice = product.DiscountPrice ?? product.Price;
             order.OrderDetails.Add(new OrderDetail
             {
@@ -76,6 +102,7 @@ public class OrderService(
         await orders.AddAsync(order);
         await AddNotificationAsync(request.UserId, "Đặt món thành công", "Đơn hàng của bạn đã được tạo thành công.", "order");
         await orders.SaveChangesAsync();
+        await transaction.CommitAsync();
         return await GetOrderDtoAsync(order.OrderId);
     }
 

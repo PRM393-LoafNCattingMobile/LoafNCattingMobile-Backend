@@ -4,6 +4,6 @@ namespace LoafNCatting.Service.Interfaces;
 
 public interface IPaymentService
 {
-    Task<PaymentLinkDto?> CreatePaymentLinkAsync(int orderId);
-    Task<PaymentStatusDto?> GetPaymentStatusAsync(int orderId);
+    Task<PaymentLinkDto?> CreatePaymentLinkAsync(int orderId, int userId);
+    Task<PaymentStatusDto?> GetPaymentStatusAsync(int orderId, int userId);
 }
