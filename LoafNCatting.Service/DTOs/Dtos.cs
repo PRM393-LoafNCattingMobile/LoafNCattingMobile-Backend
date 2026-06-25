@@ -5,6 +5,8 @@ public record RegisterRequestDto(string Name, string Email, string PhoneNumber, 
 public record LoginRequestDto(string Login, string Password);
 public record CategoryDto(int CategoryId, string Name, string? Description);
 public record ProductDto(int ProductId, string Name, string? Description, decimal Price, decimal? DiscountPrice, int UnitInStock, string? Picture, int CategoryId, string CategoryName, bool IsAvailable, bool CanOrder);
+public record AdminProductRequestDto(string Name, string? Description, decimal Price, decimal? DiscountPrice, int UnitInStock, string? Picture, int CategoryId, bool IsAvailable);
+public record StaffProductAvailabilityDto(int UnitInStock, bool IsAvailable);
 public record CatDto(int CatId, string Name, int? Age, string? GenderName, string? Breed, string? Picture, string? Description, int? FriendlinessRating, int? CutenessRating, int? PlayfulnessRating, string StatusName);
 public record TableDto(int TableId, string TableName, int Capacity, string? Area, string? Description, string StatusName);
 public record ReservationDto(int ReservationId, int? UserId, DateOnly Date, TimeOnly Time, string GuestName, string GuestPhoneNumber, int NumberOfGuests, string? Note, string StatusName, int TableId, string TableName);
@@ -24,5 +26,16 @@ public record StoreLocationDto(string StoreName, string Address, string? PhoneNu
 public record ConversationDto(int ConversationId, int UserId, DateTime CreatedAt);
 public record MessageDto(int MessageId, int ConversationId, int SenderUserId, string Sender, string Content, bool IsRead, DateTime SentAt);
 public record CreateMessageDto(int ConversationId, int SenderUserId, string Content);
+public record LookupItemDto(int Id, string Name, string? Description);
+public record AdminCategoryRequestDto(string Name, string? Description);
+public record AdminLookupsDto(
+    List<LookupItemDto> Roles,
+    List<LookupItemDto> OrderStatuses,
+    List<LookupItemDto> ReservationStatuses,
+    List<LookupItemDto> CatStatuses,
+    List<LookupItemDto> TableStatuses,
+    List<LookupItemDto> PaymentMethods,
+    List<LookupItemDto> Genders,
+    List<LookupItemDto> Categories);
 
 

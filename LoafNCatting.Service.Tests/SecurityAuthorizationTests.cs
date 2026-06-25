@@ -1,4 +1,5 @@
 using System.Data;
+using System.Reflection;
 using LoafNCatting.Api.Controllers;
 using LoafNCatting.Data.Interfaces;
 using LoafNCatting.Data.Models;
@@ -17,6 +18,66 @@ namespace LoafNCatting.Service.Tests;
 
 public class SecurityAuthorizationTests
 {
+    [Fact]
+    public void SessionAuthorization_TryRequireAdmin_AcceptsAdminSession()
+    {
+        var result = RequireRole("TryRequireAdmin", "Admin");
+
+        Assert.True(result.Allowed);
+        Assert.NotNull(result.Session);
+        Assert.Null(result.Failure);
+    }
+
+    [Fact]
+    public void SessionAuthorization_TryRequireAdmin_RejectsStaffSession()
+    {
+        var result = RequireRole("TryRequireAdmin", "Staff");
+
+        Assert.False(result.Allowed);
+        Assert.Null(result.Session);
+        AssertForbidden(result.Failure);
+    }
+
+    [Fact]
+    public void SessionAuthorization_TryRequireAdmin_RejectsCustomerSession()
+    {
+        var result = RequireRole("TryRequireAdmin", "Customer");
+
+        Assert.False(result.Allowed);
+        Assert.Null(result.Session);
+        AssertForbidden(result.Failure);
+    }
+
+    [Fact]
+    public void SessionAuthorization_TryRequireStaffOrAdmin_AcceptsAdminSession()
+    {
+        var result = RequireRole("TryRequireStaffOrAdmin", "Admin");
+
+        Assert.True(result.Allowed);
+        Assert.NotNull(result.Session);
+        Assert.Null(result.Failure);
+    }
+
+    [Fact]
+    public void SessionAuthorization_TryRequireStaffOrAdmin_AcceptsStaffSession()
+    {
+        var result = RequireRole("TryRequireStaffOrAdmin", "Staff");
+
+        Assert.True(result.Allowed);
+        Assert.NotNull(result.Session);
+        Assert.Null(result.Failure);
+    }
+
+    [Fact]
+    public void SessionAuthorization_TryRequireStaffOrAdmin_RejectsCustomerSession()
+    {
+        var result = RequireRole("TryRequireStaffOrAdmin", "Customer");
+
+        Assert.False(result.Allowed);
+        Assert.Null(result.Session);
+        AssertForbidden(result.Failure);
+    }
+
     [Fact]
     public async Task PaymentService_GetStatus_ReturnsNull_WhenOrderDoesNotBelongToUser()
     {
@@ -300,6 +361,31 @@ public class SecurityAuthorizationTests
         };
     }
 
+    private static (bool Allowed, UserSession? Session, ActionResult? Failure) RequireRole(
+        string methodName,
+        string roleName)
+    {
+        var sessions = new FakeSessionTokenService(
+            new UserSession(7, roleName, DateTime.UtcNow.AddHours(1)));
+        var context = new DefaultHttpContext();
+        context.Request.Headers.Authorization = "Bearer test-token";
+        var method = typeof(AuthController).Assembly
+            .GetType("LoafNCatting.Api.Infrastructure.SessionAuthorization")!
+            .GetMethod(methodName, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+
+        Assert.NotNull(method);
+
+        object?[] args = [context.Request, sessions, null, null];
+        var allowed = (bool)method!.Invoke(null, args)!;
+        return (allowed, args[2] as UserSession, args[3] as ActionResult);
+    }
+
+    private static void AssertForbidden(ActionResult? failure)
+    {
+        var objectResult = Assert.IsType<ObjectResult>(failure);
+        Assert.Equal(StatusCodes.Status403Forbidden, objectResult.StatusCode);
+    }
+
     private abstract class FakeRepository<T> : IGenericRepository<T> where T : class
     {
         public virtual Task<T?> GetByIdAsync(int id) => Task.FromResult<T?>(null);
@@ -468,5 +554,14 @@ public class SecurityAuthorizationTests
                 "Window 1"));
 
         public Task<List<ReservationDto>> GetUserReservationsAsync(int userId) => Task.FromResult<List<ReservationDto>>([]);
+    }
+
+    private sealed class FakeSessionTokenService(UserSession? session) : ISessionTokenService
+    {
+        public string IssueToken(User user) => "test-token";
+
+        public UserSession? GetSession(string token) => token == "test-token" ? session : null;
+
+        public void Revoke(string token) { }
     }
 }
