@@ -2,5 +2,8 @@ using LoafNCatting.Data.Models;
 
 namespace LoafNCatting.Data.Interfaces;
 
-public interface ICartRepository : IGenericRepository<Cart> { }
+public interface ICartRepository : IGenericRepository<Cart>
+{
+    Task<Cart?> GetByUserIdWithItemsAsync(int userId);
+}
 
