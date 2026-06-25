@@ -24,12 +24,12 @@ public class NotificationsController(INotificationService service, ISessionToken
     [HttpPut("{id:int}/read")]
     public async Task<IActionResult> MarkRead(int id)
     {
-        if (!SessionAuthorization.TryRequireSession(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireSession(Request, sessions, out var session, out var failure))
         {
             return failure!;
         }
 
-        return await service.MarkNotificationReadAsync(id) ? NoContent() : NotFound();
+        return await service.MarkNotificationReadAsync(id, session!.UserId) ? NoContent() : NotFound();
     }
 }
 

@@ -11,12 +11,12 @@ public class MessageService(
     IMessageRepository messages,
     IUserRepository users) : IMessageService
 {
-    public async Task<List<MessageDto>> GetMessagesAsync(int conversationId)
+    public async Task<List<MessageDto>?> GetMessagesAsync(int conversationId, int requestingUserId)
     {
         var conversation = await conversations.GetByIdAsync(conversationId);
-        if (conversation is null)
+        if (conversation is null || conversation.CustomerUserId != requestingUserId)
         {
-            return [];
+            return null;
         }
 
         var items = await messages.GetByConversationIdAsync(conversationId);
@@ -24,12 +24,19 @@ public class MessageService(
         return items.Select(message => CafeDtoMapper.ToMessageDto(message, conversation.CustomerUserId)).ToList();
     }
 
-    public async Task<List<MessageDto>> SendMessageAsync(CreateMessageDto request)
+    public async Task<List<MessageDto>?> SendMessageAsync(CreateMessageDto request, int requestingUserId)
     {
         var conversation = await conversations.GetByIdAsync(request.ConversationId);
-        if (conversation is null || string.IsNullOrWhiteSpace(request.Content))
+        if (conversation is null ||
+            conversation.CustomerUserId != requestingUserId ||
+            request.SenderUserId != requestingUserId)
         {
-            return await GetMessagesAsync(request.ConversationId);
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Content))
+        {
+            return await GetMessagesAsync(request.ConversationId, requestingUserId);
         }
 
         await messages.AddAsync(new Message
@@ -52,7 +59,7 @@ public class MessageService(
         }
 
         await messages.SaveChangesAsync();
-        return await GetMessagesAsync(request.ConversationId);
+        return await GetMessagesAsync(request.ConversationId, requestingUserId);
     }
 
     private static string BuildAutoReply(string input)

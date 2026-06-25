@@ -13,12 +13,13 @@ public class MessagesController(IMessageService service, ISessionTokenService se
     [HttpGet("conversation/{conversationId:int}")]
     public async Task<ActionResult<List<MessageDto>>> GetConversationMessages(int conversationId)
     {
-        if (!SessionAuthorization.TryRequireSession(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireSession(Request, sessions, out var session, out var failure))
         {
             return failure!;
         }
 
-        return Ok(await service.GetMessagesAsync(conversationId));
+        var messages = await service.GetMessagesAsync(conversationId, session!.UserId);
+        return messages is null ? Forbid() : Ok(messages);
     }
 
     [HttpPost]
@@ -29,7 +30,8 @@ public class MessagesController(IMessageService service, ISessionTokenService se
             return failure!;
         }
 
-        return Ok(await service.SendMessageAsync(request));
+        var messages = await service.SendMessageAsync(request, request.SenderUserId);
+        return messages is null ? Forbid() : Ok(messages);
     }
 }
 
