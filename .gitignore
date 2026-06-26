@@ -3,6 +3,8 @@
 Thumbs.db
 .idea/
 .vscode/
+.serena/
+docs/superpowers/
 *.user
 *.suo
 *.userosscache
