@@ -8,7 +8,11 @@ public record ProductDto(int ProductId, string Name, string? Description, decima
 public record AdminProductRequestDto(string Name, string? Description, decimal Price, decimal? DiscountPrice, int UnitInStock, string? Picture, int CategoryId, bool IsAvailable);
 public record StaffProductAvailabilityDto(int UnitInStock, bool IsAvailable);
 public record CatDto(int CatId, string Name, int? Age, string? GenderName, string? Breed, string? Picture, string? Description, int? FriendlinessRating, int? CutenessRating, int? PlayfulnessRating, string StatusName);
+public record AdminCatRequestDto(string Name, int? Age, int? GenderId, string? Breed, string? Picture, string? Description, int? FriendlinessRating, int? CutenessRating, int? PlayfulnessRating, int StatusId);
+public record StaffCatStatusDto(int StatusId);
 public record TableDto(int TableId, string TableName, int Capacity, string? Area, string? Description, string StatusName);
+public record AdminTableRequestDto(string TableName, int Capacity, string? Area, string? Description, int TableStatusId);
+public record StaffTableStatusDto(int TableStatusId);
 public record ReservationDto(int ReservationId, int? UserId, DateOnly Date, TimeOnly Time, string GuestName, string GuestPhoneNumber, int NumberOfGuests, string? Note, string StatusName, int TableId, string TableName);
 public record CreateReservationDto(int? UserId, DateOnly Date, TimeOnly Time, string GuestName, string GuestPhoneNumber, int NumberOfGuests, string? Note, int TableId);
 public record CartItemRequestDto(int UserId, int ProductId, int Quantity);
