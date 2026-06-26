@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace LoafNCatting.Data.Models;
@@ -25,5 +25,3 @@ public partial class Payment
 
     public virtual Order Order { get; set; } = null!;
 }
-
-

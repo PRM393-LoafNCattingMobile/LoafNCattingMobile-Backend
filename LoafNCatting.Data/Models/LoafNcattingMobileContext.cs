@@ -1,13 +1,16 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using LoafNCatting.Data.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace LoafNCatting.Data.Models;
 
-public partial class LoafNcattingDbContext : DbContext
+public partial class LoafNcattingMobileContext : DbContext
 {
-    public LoafNcattingDbContext(DbContextOptions<LoafNcattingDbContext> options)
+    public LoafNcattingMobileContext()
+    {
+    }
+
+    public LoafNcattingMobileContext(DbContextOptions<LoafNcattingMobileContext> options)
         : base(options)
     {
     }
@@ -56,11 +59,15 @@ public partial class LoafNcattingDbContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        => optionsBuilder.UseSqlServer("Server=100.120.217.80,1433;Database=LoafNCattingMobile;User Id=prm393_user;Password=Nhom@1chuachuanbidoc;TrustServerCertificate=True;Encrypt=False");
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Cart>(entity =>
         {
-            entity.HasKey(e => e.CartId).HasName("PK__Cart__51BCD7B79C88D6E6");
+            entity.HasKey(e => e.CartId).HasName("PK__Cart__51BCD7B7D78A10A3");
 
             entity.ToTable("Cart");
 
@@ -77,7 +84,7 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<CartItem>(entity =>
         {
-            entity.HasKey(e => e.CartItemId).HasName("PK__CartItem__488B0B0A0C060406");
+            entity.HasKey(e => e.CartItemId).HasName("PK__CartItem__488B0B0A557AC22E");
 
             entity.ToTable("CartItem");
 
@@ -100,7 +107,7 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<Cat>(entity =>
         {
-            entity.HasKey(e => e.CatId).HasName("PK__Cat__6A1C8AFADE882CA3");
+            entity.HasKey(e => e.CatId).HasName("PK__Cat__6A1C8AFA5A91EF2E");
 
             entity.ToTable("Cat");
 
@@ -123,18 +130,18 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<CatStatus>(entity =>
         {
-            entity.HasKey(e => e.StatusId).HasName("PK__CatStatu__C8EE2063F6D9172A");
+            entity.HasKey(e => e.StatusId).HasName("PK__CatStatu__C8EE2063E2C0F977");
 
             entity.ToTable("CatStatus");
 
-            entity.HasIndex(e => e.StatusName, "UQ__CatStatu__05E7698A4AC5F82E").IsUnique();
+            entity.HasIndex(e => e.StatusName, "UQ__CatStatu__05E7698AFD3F8181").IsUnique();
 
             entity.Property(e => e.StatusName).HasMaxLength(50);
         });
 
         modelBuilder.Entity<Category>(entity =>
         {
-            entity.HasKey(e => e.CategoryId).HasName("PK__Category__19093A0B79268694");
+            entity.HasKey(e => e.CategoryId).HasName("PK__Category__19093A0B10F44512");
 
             entity.ToTable("Category");
 
@@ -143,7 +150,7 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<Conversation>(entity =>
         {
-            entity.HasKey(e => e.ConversationId).HasName("PK__Conversa__C050D8774D5BBC87");
+            entity.HasKey(e => e.ConversationId).HasName("PK__Conversa__C050D8778705E79C");
 
             entity.ToTable("Conversation");
 
@@ -164,18 +171,18 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<Gender>(entity =>
         {
-            entity.HasKey(e => e.GenderId).HasName("PK__Gender__4E24E9F7ACF09A91");
+            entity.HasKey(e => e.GenderId).HasName("PK__Gender__4E24E9F77822BD95");
 
             entity.ToTable("Gender");
 
-            entity.HasIndex(e => e.GenderName, "UQ__Gender__F7C17715894A60A4").IsUnique();
+            entity.HasIndex(e => e.GenderName, "UQ__Gender__F7C177150F3DBC71").IsUnique();
 
             entity.Property(e => e.GenderName).HasMaxLength(50);
         });
 
         modelBuilder.Entity<Message>(entity =>
         {
-            entity.HasKey(e => e.MessageId).HasName("PK__Message__C87C0C9CD2B2A545");
+            entity.HasKey(e => e.MessageId).HasName("PK__Message__C87C0C9C33022BE8");
 
             entity.ToTable("Message");
 
@@ -196,7 +203,7 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<Notification>(entity =>
         {
-            entity.HasKey(e => e.NotificationId).HasName("PK__Notifica__20CF2E128B719AD0");
+            entity.HasKey(e => e.NotificationId).HasName("PK__Notifica__20CF2E12B13E2C03");
 
             entity.ToTable("Notification");
 
@@ -213,7 +220,7 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<Order>(entity =>
         {
-            entity.HasKey(e => e.OrderId).HasName("PK__Order__C3905BCFF178363A");
+            entity.HasKey(e => e.OrderId).HasName("PK__Order__C3905BCFDC7DA8EA");
 
             entity.ToTable("Order");
 
@@ -251,7 +258,7 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<OrderDetail>(entity =>
         {
-            entity.HasKey(e => e.OrderDetailId).HasName("PK__OrderDet__D3B9D36C19A3E4DC");
+            entity.HasKey(e => e.OrderDetailId).HasName("PK__OrderDet__D3B9D36CC8396E71");
 
             entity.ToTable("OrderDetail");
 
@@ -271,18 +278,18 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<OrderStatus>(entity =>
         {
-            entity.HasKey(e => e.OrderStatusId).HasName("PK__OrderSta__BC674CA1177F7F0E");
+            entity.HasKey(e => e.OrderStatusId).HasName("PK__OrderSta__BC674CA195F8913E");
 
             entity.ToTable("OrderStatus");
 
-            entity.HasIndex(e => e.OrderStatusName, "UQ__OrderSta__837D0BC132B209D6").IsUnique();
+            entity.HasIndex(e => e.OrderStatusName, "UQ__OrderSta__837D0BC1C930A26C").IsUnique();
 
             entity.Property(e => e.OrderStatusName).HasMaxLength(100);
         });
 
         modelBuilder.Entity<Payment>(entity =>
         {
-            entity.HasKey(e => e.PaymentId).HasName("PK__Payment__9B556A389AE0C6FC");
+            entity.HasKey(e => e.PaymentId).HasName("PK__Payment__9B556A38FFDD5BC3");
 
             entity.ToTable("Payment");
 
@@ -309,18 +316,18 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<PaymentMethod>(entity =>
         {
-            entity.HasKey(e => e.MethodId).HasName("PK__PaymentM__FC68185154B698AB");
+            entity.HasKey(e => e.MethodId).HasName("PK__PaymentM__FC681851AD506537");
 
             entity.ToTable("PaymentMethod");
 
-            entity.HasIndex(e => e.MethodName, "UQ__PaymentM__218CFB17F2FDD66C").IsUnique();
+            entity.HasIndex(e => e.MethodName, "UQ__PaymentM__218CFB1747A99AE2").IsUnique();
 
             entity.Property(e => e.MethodName).HasMaxLength(50);
         });
 
         modelBuilder.Entity<Product>(entity =>
         {
-            entity.HasKey(e => e.ProductId).HasName("PK__Product__B40CC6CD7B43D002");
+            entity.HasKey(e => e.ProductId).HasName("PK__Product__B40CC6CD6503436D");
 
             entity.ToTable("Product");
 
@@ -341,7 +348,7 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<Reservation>(entity =>
         {
-            entity.HasKey(e => e.ReservationId).HasName("PK__Reservat__B7EE5F2437A94FED");
+            entity.HasKey(e => e.ReservationId).HasName("PK__Reservat__B7EE5F2454AC5976");
 
             entity.ToTable("Reservation");
 
@@ -370,18 +377,18 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<ReservationStatus>(entity =>
         {
-            entity.HasKey(e => e.StatusId).HasName("PK__Reservat__C8EE20635F43E4D1");
+            entity.HasKey(e => e.StatusId).HasName("PK__Reservat__C8EE20637D74BE02");
 
             entity.ToTable("ReservationStatus");
 
-            entity.HasIndex(e => e.StatusName, "UQ__Reservat__05E7698A9019C479").IsUnique();
+            entity.HasIndex(e => e.StatusName, "UQ__Reservat__05E7698AE7D42470").IsUnique();
 
             entity.Property(e => e.StatusName).HasMaxLength(50);
         });
 
         modelBuilder.Entity<RestaurantTable>(entity =>
         {
-            entity.HasKey(e => e.TableId).HasName("PK__Restaura__7D5F01EE38247489");
+            entity.HasKey(e => e.TableId).HasName("PK__Restaura__7D5F01EEAC5A65F2");
 
             entity.Property(e => e.Area).HasMaxLength(100);
             entity.Property(e => e.Capacity).HasDefaultValue(2);
@@ -395,18 +402,18 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<Role>(entity =>
         {
-            entity.HasKey(e => e.RoleId).HasName("PK__Role__8AFACE1ADD83E91A");
+            entity.HasKey(e => e.RoleId).HasName("PK__Role__8AFACE1A4EB62E3C");
 
             entity.ToTable("Role");
 
-            entity.HasIndex(e => e.RoleName, "UQ__Role__8A2B616068140934").IsUnique();
+            entity.HasIndex(e => e.RoleName, "UQ__Role__8A2B6160375A9C9F").IsUnique();
 
             entity.Property(e => e.RoleName).HasMaxLength(100);
         });
 
         modelBuilder.Entity<StoreLocation>(entity =>
         {
-            entity.HasKey(e => e.StoreLocationId).HasName("PK__StoreLoc__A130591C8E9377C6");
+            entity.HasKey(e => e.StoreLocationId).HasName("PK__StoreLoc__A130591CDF28E758");
 
             entity.ToTable("StoreLocation");
 
@@ -417,24 +424,24 @@ public partial class LoafNcattingDbContext : DbContext
 
         modelBuilder.Entity<TableStatus>(entity =>
         {
-            entity.HasKey(e => e.TableStatusId).HasName("PK__TableSta__2DE37812F32DF932");
+            entity.HasKey(e => e.TableStatusId).HasName("PK__TableSta__2DE378126F0C0FF0");
 
             entity.ToTable("TableStatus");
 
-            entity.HasIndex(e => e.StatusName, "UQ__TableSta__05E7698A743559DB").IsUnique();
+            entity.HasIndex(e => e.StatusName, "UQ__TableSta__05E7698AC371EDAB").IsUnique();
 
             entity.Property(e => e.StatusName).HasMaxLength(100);
         });
 
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(e => e.UserId).HasName("PK__User__1788CC4C4DAA1EB4");
+            entity.HasKey(e => e.UserId).HasName("PK__User__1788CC4CD8C0C5E2");
 
             entity.ToTable("User");
 
-            entity.HasIndex(e => e.PhoneNumber, "UQ__User__85FB4E38E1E91CF2").IsUnique();
+            entity.HasIndex(e => e.PhoneNumber, "UQ__User__85FB4E3852E17E05").IsUnique();
 
-            entity.HasIndex(e => e.Email, "UQ__User__A9D1053485D26839").IsUnique();
+            entity.HasIndex(e => e.Email, "UQ__User__A9D105348372F358").IsUnique();
 
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("(getdate())")
@@ -459,5 +466,3 @@ public partial class LoafNcattingDbContext : DbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }
-
-

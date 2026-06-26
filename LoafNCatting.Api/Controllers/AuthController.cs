@@ -11,17 +11,51 @@ namespace LoafNCatting.Api.Controllers;
 public class AuthController(IAuthService service, ISessionTokenService sessions) : ControllerBase
 {
     [HttpPost("register")]
-    public async Task<ActionResult<AuthResponseDto>> Register(RegisterRequestDto request)
+    public async Task<ActionResult<EmailVerificationChallengeDto>> Register(RegisterRequestDto request)
     {
         var result = await service.RegisterAsync(request);
-        return result is null ? Conflict(new { message = "Email or phone number already exists." }) : Ok(result);
+        return result is null
+            ? Conflict(new { message = "Email or phone number already exists." })
+            : Accepted(result);
     }
 
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponseDto>> Login(LoginRequestDto request)
     {
         var result = await service.LoginAsync(request);
-        return result is null ? Unauthorized(new { message = "Invalid login credentials." }) : Ok(result);
+        if (result.Auth is not null)
+        {
+            return Ok(result.Auth);
+        }
+
+        if (result.RequiresEmailVerification)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                message = "Email address is not verified.",
+                email = result.Email
+            });
+        }
+
+        return Unauthorized(new { message = "Invalid login credentials." });
+    }
+
+    [HttpPost("verify-email")]
+    public async Task<ActionResult<AuthResponseDto>> VerifyEmail(VerifyEmailRequestDto request)
+    {
+        var result = await service.VerifyEmailAsync(request);
+        return result is null
+            ? BadRequest(new { message = "Invalid or expired verification code." })
+            : Ok(result);
+    }
+
+    [HttpPost("resend-verification")]
+    public async Task<ActionResult<EmailVerificationChallengeDto>> ResendVerification(ResendVerificationRequestDto request)
+    {
+        var result = await service.ResendVerificationAsync(request);
+        return result is null
+            ? NotFound(new { message = "Account not found or email is already verified." })
+            : Accepted(result);
     }
 
     [HttpPost("logout")]

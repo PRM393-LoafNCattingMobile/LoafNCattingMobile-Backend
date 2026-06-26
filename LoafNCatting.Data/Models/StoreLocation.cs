@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace LoafNCatting.Data.Models;
@@ -19,5 +19,3 @@ public partial class StoreLocation
 
     public double Longitude { get; set; }
 }
-
-

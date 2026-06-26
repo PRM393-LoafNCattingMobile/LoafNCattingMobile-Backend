@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace LoafNCatting.Data.Models;
@@ -43,5 +43,3 @@ public partial class Order
 
     public virtual RestaurantTable? Table { get; set; }
 }
-
-

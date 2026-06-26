@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace LoafNCatting.Data.Models;
@@ -13,5 +13,3 @@ public partial class Gender
 
     public virtual ICollection<Cat> Cats { get; set; } = new List<Cat>();
 }
-
-

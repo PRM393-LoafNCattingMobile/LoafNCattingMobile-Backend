@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace LoafNCatting.Data.Models;
@@ -21,5 +21,3 @@ public partial class Conversation
 
     public virtual User? StaffUser { get; set; }
 }
-
-
