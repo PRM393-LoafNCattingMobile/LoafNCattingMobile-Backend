@@ -13,10 +13,17 @@ public class ReservationsController(IReservationService service, ISessionTokenSe
     [HttpPost]
     public async Task<ActionResult<ReservationDto>> CreateReservation(CreateReservationDto request)
     {
-        if (request.UserId is int userId &&
-            !SessionAuthorization.TryRequireUserSession(Request, sessions, userId, out var failure))
+        if (!SessionAuthorization.TryRequireSession(Request, sessions, out var session, out var failure))
         {
             return failure!;
+        }
+
+        if (request.UserId != session!.UserId)
+        {
+            return new ObjectResult(new { message = "Session does not match the requested user." })
+            {
+                StatusCode = StatusCodes.Status403Forbidden
+            };
         }
 
         var reservation = await service.CreateReservationAsync(request);

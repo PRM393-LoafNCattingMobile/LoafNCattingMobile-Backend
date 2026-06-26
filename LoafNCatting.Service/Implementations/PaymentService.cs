@@ -12,11 +12,11 @@ public class PaymentService(
     IOrderRepository orders,
     IConfiguration configuration) : IPaymentService
 {
-    public async Task<PaymentLinkDto?> CreatePaymentLinkAsync(int orderId)
+    public async Task<PaymentLinkDto?> CreatePaymentLinkAsync(int orderId, int userId)
     {
         var order = await orders.GetByIdWithDetailsAsync(orderId);
         var payment = order?.Payments.FirstOrDefault();
-        if (order is null || payment is null)
+        if (order is null || payment is null || order.CustomerUserId != userId)
         {
             return null;
         }
@@ -67,11 +67,11 @@ public class PaymentService(
             result.paymentLinkId);
     }
 
-    public async Task<PaymentStatusDto?> GetPaymentStatusAsync(int orderId)
+    public async Task<PaymentStatusDto?> GetPaymentStatusAsync(int orderId, int userId)
     {
         var order = await orders.GetByIdWithDetailsAsync(orderId);
         var payment = order?.Payments.FirstOrDefault();
-        if (order is null || payment is null)
+        if (order is null || payment is null || order.CustomerUserId != userId)
         {
             return null;
         }

@@ -37,5 +37,31 @@ public class ProductRepository(LoafNcattingDbContext context) : GenericRepositor
             .Where(product => productIds.Contains(product.ProductId))
             .ToListAsync();
     }
+
+    public async Task<bool> TryReserveStockAsync(IReadOnlyDictionary<int, int> quantitiesByProductId)
+    {
+        var updatedAt = DateTime.UtcNow;
+        foreach (var item in quantitiesByProductId)
+        {
+            var productId = item.Key;
+            var quantity = item.Value;
+            var updatedRows = await _context.Products
+                .Where(product =>
+                    product.ProductId == productId &&
+                    product.IsAvailable &&
+                    product.UnitInStock >= quantity)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(product => product.UnitInStock, product => product.UnitInStock - quantity)
+                    .SetProperty(product => product.IsAvailable, product => product.UnitInStock - quantity > 0)
+                    .SetProperty(product => product.UpdatedAt, updatedAt));
+
+            if (updatedRows != 1)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
 

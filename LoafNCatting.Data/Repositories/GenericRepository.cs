@@ -2,6 +2,7 @@ using LoafNCatting.Data.Interfaces;
 using LoafNCatting.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using System.Data;
 
 namespace LoafNCatting.Data.Repositories;
 
@@ -47,6 +48,11 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     public async Task<IDbContextTransaction> BeginTransactionAsync()
     {
         return await _context.Database.BeginTransactionAsync();
+    }
+
+    public async Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel)
+    {
+        return await _context.Database.BeginTransactionAsync(isolationLevel);
     }
 }
 
