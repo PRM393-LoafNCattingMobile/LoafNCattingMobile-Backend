@@ -523,6 +523,13 @@ public class SecurityAuthorizationTests
 
     private sealed class FakeUserRepository : FakeRepository<User>, IUserRepository
     {
+        public Task<IEnumerable<User>> GetAdminUsersAsync(
+            int? roleId,
+            string? search,
+            bool? active) => Task.FromResult<IEnumerable<User>>([]);
+
+        public Task<User?> GetByIdWithRoleAsync(int id) => Task.FromResult<User?>(null);
+
         public Task<bool> ExistsByEmailOrPhoneAsync(string email, string phoneNumber) => Task.FromResult(false);
         public Task<User?> GetByEmailAsync(string email) => Task.FromResult<User?>(null);
         public Task<User?> GetByLoginAsync(string email, string phoneNumber) => Task.FromResult<User?>(null);

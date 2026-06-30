@@ -7,6 +7,10 @@ public record RegisterRequestDto(string Name, string Email, string PhoneNumber, 
 public record LoginRequestDto(string Login, string Password);
 public record VerifyEmailRequestDto(string Email, string VerificationCode);
 public record ResendVerificationRequestDto(string Email);
+public record AdminUserDto(int UserId, string Name, string Email, string PhoneNumber, string? Address, string? AvatarUrl, int RoleId, string RoleName, bool IsActive, bool IsEmailVerified, DateTime CreatedAt, DateTime? UpdatedAt);
+public record AdminCreateStaffDto(string Name, string Email, string PhoneNumber, string Password, string? Address, string? AvatarUrl);
+public record AdminUserRoleDto(int RoleId);
+public record AdminUserActiveDto(bool IsActive);
 public record CategoryDto(int CategoryId, string Name, string? Description);
 public record ProductDto(int ProductId, string Name, string? Description, decimal Price, decimal? DiscountPrice, int UnitInStock, string? Picture, int CategoryId, string CategoryName, bool IsAvailable, bool CanOrder);
 public record AdminProductRequestDto(string Name, string? Description, decimal Price, decimal? DiscountPrice, int UnitInStock, string? Picture, int CategoryId, bool IsAvailable);
@@ -33,6 +37,7 @@ public record PaymentLinkDto(int OrderId, long OrderCode, int Amount, string Che
 public record PaymentStatusDto(int OrderId, string PaymentStatus, string OrderStatus, bool IsPaid);
 public record NotificationDto(int NotificationId, int? UserId, string Title, string Content, string? Type, bool IsRead, DateTime CreatedAt);
 public record StoreLocationDto(string StoreName, string Address, string? PhoneNumber, string? OpeningHours, double Latitude, double Longitude);
+public record AdminStoreLocationRequestDto(string StoreName, string Address, string? PhoneNumber, string? OpeningHours, double Latitude, double Longitude);
 public record ConversationDto(int ConversationId, int UserId, DateTime CreatedAt);
 public record MessageDto(int MessageId, int ConversationId, int SenderUserId, string Sender, string Content, bool IsRead, DateTime SentAt);
 public record CreateMessageDto(int ConversationId, int SenderUserId, string Content);
