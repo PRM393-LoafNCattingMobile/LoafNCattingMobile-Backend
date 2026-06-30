@@ -5,6 +5,7 @@ using LoafNCatting.Data.Repositories;
 using LoafNCatting.Service.Interfaces;
 using LoafNCatting.Service.Implementations;
 using LoafNCatting.Service.Auth;
+using LoafNCatting.Service.Mail;
 using Microsoft.EntityFrameworkCore;
 using Net.payOS;
 
@@ -19,6 +20,11 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddMemoryCache();
+builder.Services.AddOptions<SmtpMailOptions>()
+    .Bind(builder.Configuration.GetSection(SmtpMailOptions.SectionName));
+builder.Services.AddOptions<EmailVerificationOptions>()
+    .Bind(builder.Configuration.GetSection(EmailVerificationOptions.SectionName))
+    .ValidateDataAnnotations();
 
 builder.Services.AddCors(options =>
 {
@@ -62,6 +68,9 @@ builder.Services.AddSingleton(sessionTokenOptions);
 builder.Services.AddSingleton<ISessionTokenService, InMemorySessionTokenService>();
 
 builder.Services.AddScoped<IPasswordService, PasswordService>();
+builder.Services.AddScoped<IMailService, SmtpMailService>();
+builder.Services.AddScoped<IOtpGenerator, OtpGenerator>();
+builder.Services.AddScoped<IVerificationEmailComposer, VerificationEmailComposer>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IProductService, ProductService>();

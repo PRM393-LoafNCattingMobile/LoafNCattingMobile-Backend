@@ -8,14 +8,23 @@ public class UserRepository(LoafNcattingDbContext context) : GenericRepository<U
 {
     public async Task<bool> ExistsByEmailOrPhoneAsync(string email, string phoneNumber)
     {
-        return await _context.Users.AnyAsync(user => user.Email == email || user.PhoneNumber == phoneNumber);
+        return await _context.Users.AnyAsync(user =>
+            user.Email == email ||
+            user.PhoneNumber == phoneNumber);
+    }
+
+    public async Task<User?> GetByEmailAsync(string email)
+    {
+        return await _context.Users
+            .Include(user => user.Role)
+            .FirstOrDefaultAsync(user => user.Email == email);
     }
 
     public async Task<User?> GetByLoginAsync(string login, string phoneNumber)
     {
         return await _context.Users
             .Include(user => user.Role)
-            .FirstOrDefaultAsync(user => user.Email.ToLower() == login || user.PhoneNumber == phoneNumber);
+            .FirstOrDefaultAsync(user => user.Email == login || user.PhoneNumber == phoneNumber);
     }
 
     public async Task<User?> GetFirstStaffAsync()
