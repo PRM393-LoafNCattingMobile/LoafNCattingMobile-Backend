@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace LoafNCatting.Data.Models;
@@ -13,3 +13,5 @@ public partial class TableStatus
 
     public virtual ICollection<RestaurantTable> RestaurantTables { get; set; } = new List<RestaurantTable>();
 }
+
+

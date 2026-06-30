@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace LoafNCatting.Data.Models;
@@ -35,3 +35,5 @@ public partial class Cat
 
     public virtual CatStatus Status { get; set; } = null!;
 }
+
+

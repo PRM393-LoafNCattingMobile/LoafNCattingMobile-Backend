@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace LoafNCatting.Data.Models;
@@ -17,3 +17,5 @@ public partial class Cart
 
     public virtual User User { get; set; } = null!;
 }
+
+

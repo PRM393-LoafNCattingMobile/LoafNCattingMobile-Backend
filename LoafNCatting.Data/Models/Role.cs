@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace LoafNCatting.Data.Models;
@@ -13,3 +13,5 @@ public partial class Role
 
     public virtual ICollection<User> Users { get; set; } = new List<User>();
 }
+
+

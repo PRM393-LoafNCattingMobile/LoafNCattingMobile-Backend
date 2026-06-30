@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace LoafNCatting.Data.Models;
@@ -23,3 +23,5 @@ public partial class RestaurantTable
 
     public virtual TableStatus TableStatus { get; set; } = null!;
 }
+
+

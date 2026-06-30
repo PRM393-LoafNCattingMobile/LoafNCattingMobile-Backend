@@ -1,9 +1,10 @@
 # OS / editors
 .DS_Store
 Thumbs.db
-.worktrees/
 .idea/
 .vscode/
+.serena/
+docs/superpowers/
 *.user
 *.suo
 *.userosscache
