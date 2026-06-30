@@ -46,6 +46,35 @@ public class ReservationService(
         return items.Select(CafeDtoMapper.ToReservationDto).ToList();
     }
 
+    public async Task<List<ReservationDto>> GetStaffReservationsAsync(
+        int? statusId,
+        DateOnly? date)
+    {
+        var items = await reservations.GetStaffReservationsAsync(statusId, date);
+        return items.Select(CafeDtoMapper.ToReservationDto).ToList();
+    }
+
+    public async Task<ReservationDto?> UpdateReservationStatusAsync(
+        int id,
+        StaffReservationStatusDto request)
+    {
+        var reservation = await reservations.GetByIdWithDetailsAsync(id);
+        var targetStatus = await reservationStatuses.GetByIdAsync(request.StatusId);
+        if (reservation is null ||
+            targetStatus is null ||
+            !CanTransition(reservation.Status.StatusName, targetStatus.StatusName))
+        {
+            return null;
+        }
+
+        reservation.StatusId = targetStatus.StatusId;
+        reservation.Status = targetStatus;
+        reservation.UpdatedAt = DateTime.UtcNow;
+        reservations.Update(reservation);
+        await reservations.SaveChangesAsync();
+        return CafeDtoMapper.ToReservationDto(reservation);
+    }
+
     private async Task<ReservationDto?> GetReservationDtoAsync(int reservationId)
     {
         var reservation = await reservations.GetByIdWithDetailsAsync(reservationId);
@@ -66,6 +95,16 @@ public class ReservationService(
             Content = content,
             Type = type
         });
+    }
+
+    private static bool CanTransition(string currentStatus, string targetStatus)
+    {
+        return currentStatus switch
+        {
+            "Đang chờ" => targetStatus is "Đã xác nhận" or "Đã hủy",
+            "Đã xác nhận" => targetStatus is "Hoàn thành" or "Đã hủy" or "Không đến",
+            _ => false
+        };
     }
 }
 

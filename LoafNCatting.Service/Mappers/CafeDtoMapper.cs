@@ -99,7 +99,8 @@ public static class CafeDtoMapper
             order.CustomerUserId,
             order.OrderStatus.OrderStatusName,
             paymentStatus,
-            details);
+            details,
+            order.CustomerUser?.Name);
     }
 
     public static CartDto ToCartDto(Cart cart)

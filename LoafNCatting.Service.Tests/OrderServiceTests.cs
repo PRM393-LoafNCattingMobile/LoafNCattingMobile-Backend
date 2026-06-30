@@ -99,6 +99,11 @@ public class OrderServiceTests
             return Task.FromResult(Enumerable.Empty<Order>());
         }
 
+        public Task<IEnumerable<Order>> GetStaffOrdersAsync(int? statusId, DateOnly? date)
+        {
+            return Task.FromResult(Enumerable.Empty<Order>());
+        }
+
         public Task<Order?> GetByIdWithDetailsAsync(int orderId)
         {
             return Task.FromResult(AddedOrder?.OrderId == orderId ? AddedOrder : null);

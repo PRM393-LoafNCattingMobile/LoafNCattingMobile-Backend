@@ -20,5 +20,20 @@ public class RestaurantTableRepository(
             .OrderBy(table => table.Capacity)
             .ToListAsync();
     }
+
+    public async Task<IEnumerable<RestaurantTable>> GetTablesAsync()
+    {
+        return await _context.RestaurantTables
+            .Include(table => table.TableStatus)
+            .OrderBy(table => table.TableName)
+            .ToListAsync();
+    }
+
+    public async Task<RestaurantTable?> GetByIdWithStatusAsync(int id)
+    {
+        return await _context.RestaurantTables
+            .Include(table => table.TableStatus)
+            .FirstOrDefaultAsync(table => table.TableId == id);
+    }
 }
 
