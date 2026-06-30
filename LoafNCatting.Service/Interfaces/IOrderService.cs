@@ -6,5 +6,7 @@ public interface IOrderService
 {
     Task<OrderDto?> CreateOrderAsync(CreateOrderRequestDto request);
     Task<List<OrderDto>> GetUserOrdersAsync(int userId);
+    Task<List<OrderDto>> GetStaffOrdersAsync(int? statusId, DateOnly? date);
+    Task<OrderDto?> UpdateOrderStatusAsync(int id, int actingUserId, StaffOrderStatusDto request);
 }
 

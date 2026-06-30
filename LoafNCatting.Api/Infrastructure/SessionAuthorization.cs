@@ -53,6 +53,50 @@ internal static class SessionAuthorization
         return true;
     }
 
+    public static bool TryRequireAdmin(
+        HttpRequest request,
+        ISessionTokenService sessions,
+        out UserSession? session,
+        out ActionResult? failure)
+    {
+        return TryRequireAnyRole(request, sessions, ["Admin"], out session, out failure);
+    }
+
+    public static bool TryRequireStaffOrAdmin(
+        HttpRequest request,
+        ISessionTokenService sessions,
+        out UserSession? session,
+        out ActionResult? failure)
+    {
+        return TryRequireAnyRole(request, sessions, ["Admin", "Staff"], out session, out failure);
+    }
+
+    private static bool TryRequireAnyRole(
+        HttpRequest request,
+        ISessionTokenService sessions,
+        IEnumerable<string> allowedRoles,
+        out UserSession? session,
+        out ActionResult? failure)
+    {
+        if (!TryRequireSession(request, sessions, out session, out failure))
+        {
+            return false;
+        }
+
+        if (!allowedRoles.Contains(session!.RoleName.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            session = null;
+            failure = new ObjectResult(new { message = "Session role is not allowed for this action." })
+            {
+                StatusCode = StatusCodes.Status403Forbidden
+            };
+            return false;
+        }
+
+        failure = null;
+        return true;
+    }
+
     private static string? ReadToken(HttpRequest request)
     {
         var authorization = request.Headers.Authorization.ToString();

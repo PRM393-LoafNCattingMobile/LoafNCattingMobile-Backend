@@ -114,10 +114,49 @@ public class OrderService(
         return items.Select(CafeDtoMapper.ToOrderDto).ToList();
     }
 
+    public async Task<List<OrderDto>> GetStaffOrdersAsync(int? statusId, DateOnly? date)
+    {
+        var items = await orders.GetStaffOrdersAsync(statusId, date);
+        return items.Select(CafeDtoMapper.ToOrderDto).ToList();
+    }
+
+    public async Task<OrderDto?> UpdateOrderStatusAsync(
+        int id,
+        int actingUserId,
+        StaffOrderStatusDto request)
+    {
+        var order = await orders.GetByIdWithDetailsAsync(id);
+        var targetStatus = await orderStatuses.GetByIdAsync(request.StatusId);
+        if (order is null ||
+            targetStatus is null ||
+            !CanTransition(order.OrderStatus.OrderStatusName, targetStatus.OrderStatusName))
+        {
+            return null;
+        }
+
+        order.OrderStatusId = targetStatus.OrderStatusId;
+        order.OrderStatus = targetStatus;
+        order.StaffUserId = actingUserId;
+        order.UpdatedAt = DateTime.UtcNow;
+        orders.Update(order);
+        await orders.SaveChangesAsync();
+        return CafeDtoMapper.ToOrderDto(order);
+    }
+
     private async Task<OrderDto?> GetOrderDtoAsync(int orderId)
     {
         var order = await orders.GetByIdWithDetailsAsync(orderId);
         return order is null ? null : CafeDtoMapper.ToOrderDto(order);
+    }
+
+    private static bool CanTransition(string currentStatus, string targetStatus)
+    {
+        return currentStatus switch
+        {
+            "Đang chờ" => targetStatus is "Đang chuẩn bị" or "Đã hủy",
+            "Đang chuẩn bị" => targetStatus is "Hoàn thành" or "Đã hủy",
+            _ => false
+        };
     }
 
     private async Task AddNotificationAsync(int? userId, string title, string content, string type)

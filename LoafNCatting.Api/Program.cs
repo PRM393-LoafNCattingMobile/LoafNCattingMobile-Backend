@@ -72,6 +72,7 @@ builder.Services.AddScoped<IMailService, SmtpMailService>();
 builder.Services.AddScoped<IOtpGenerator, OtpGenerator>();
 builder.Services.AddScoped<IVerificationEmailComposer, VerificationEmailComposer>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICartService, CartService>();
@@ -90,6 +91,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IStoreLocationService, StoreLocationService>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
+builder.Services.AddScoped<ILookupService, LookupService>();
 
 var app = builder.Build();
 
