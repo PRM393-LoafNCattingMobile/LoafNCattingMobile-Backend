@@ -1,8 +1,12 @@
 namespace LoafNCatting.Service.DTOs;
 
 public record AuthResponseDto(int UserId, string Name, string Email, string PhoneNumber, string RoleName, string Token);
+public record EmailVerificationChallengeDto(string Email, DateTime ExpiresAtUtc);
+public record LoginResultDto(AuthResponseDto? Auth, bool RequiresEmailVerification, string? Email);
 public record RegisterRequestDto(string Name, string Email, string PhoneNumber, string Password);
 public record LoginRequestDto(string Login, string Password);
+public record VerifyEmailRequestDto(string Email, string VerificationCode);
+public record ResendVerificationRequestDto(string Email);
 public record CategoryDto(int CategoryId, string Name, string? Description);
 public record ProductDto(int ProductId, string Name, string? Description, decimal Price, decimal? DiscountPrice, int UnitInStock, string? Picture, int CategoryId, string CategoryName, bool IsAvailable, bool CanOrder);
 public record AdminProductRequestDto(string Name, string? Description, decimal Price, decimal? DiscountPrice, int UnitInStock, string? Picture, int CategoryId, bool IsAvailable);

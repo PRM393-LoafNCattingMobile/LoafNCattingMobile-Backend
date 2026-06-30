@@ -440,6 +440,8 @@ public partial class LoafNcattingDbContext : DbContext
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnType("datetime");
             entity.Property(e => e.Email).HasMaxLength(255);
+            entity.Property(e => e.EmailVerificationOtpExpiresAt).HasColumnType("datetime");
+            entity.Property(e => e.EmailVerificationOtpHash).HasMaxLength(255);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.Password).HasMaxLength(255);

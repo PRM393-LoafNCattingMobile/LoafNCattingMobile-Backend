@@ -27,6 +27,12 @@ public partial class User
 
     public DateTime? UpdatedAt { get; set; }
 
+    public bool IsEmailVerified { get; set; }
+
+    public string? EmailVerificationOtpHash { get; set; }
+
+    public DateTime? EmailVerificationOtpExpiresAt { get; set; }
+
     public virtual ICollection<Cart> Carts { get; set; } = new List<Cart>();
 
     public virtual ICollection<Conversation> ConversationCustomerUsers { get; set; } = new List<Conversation>();
