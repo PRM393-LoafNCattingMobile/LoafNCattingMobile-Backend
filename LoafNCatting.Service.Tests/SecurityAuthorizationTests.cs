@@ -437,6 +437,9 @@ public class SecurityAuthorizationTests
 
         public Task<IEnumerable<Order>> GetUserOrdersAsync(int userId) => Task.FromResult<IEnumerable<Order>>([]);
 
+        public Task<IEnumerable<Order>> GetStaffOrdersAsync(int? statusId, DateOnly? date) =>
+            Task.FromResult<IEnumerable<Order>>([]);
+
         public Task<Order?> GetByIdWithDetailsAsync(int orderId)
         {
             return Task.FromResult(order ?? AddedOrders.FirstOrDefault(item => item.OrderId == orderId));
@@ -521,6 +524,7 @@ public class SecurityAuthorizationTests
     private sealed class FakeUserRepository : FakeRepository<User>, IUserRepository
     {
         public Task<bool> ExistsByEmailOrPhoneAsync(string email, string phoneNumber) => Task.FromResult(false);
+        public Task<User?> GetByEmailAsync(string email) => Task.FromResult<User?>(null);
         public Task<User?> GetByLoginAsync(string email, string phoneNumber) => Task.FromResult<User?>(null);
         public Task<User?> GetFirstStaffAsync() => Task.FromResult<User?>(null);
     }
@@ -554,6 +558,14 @@ public class SecurityAuthorizationTests
                 "Window 1"));
 
         public Task<List<ReservationDto>> GetUserReservationsAsync(int userId) => Task.FromResult<List<ReservationDto>>([]);
+
+        public Task<List<ReservationDto>> GetStaffReservationsAsync(
+            int? statusId,
+            DateOnly? date) => Task.FromResult<List<ReservationDto>>([]);
+
+        public Task<ReservationDto?> UpdateReservationStatusAsync(
+            int id,
+            StaffReservationStatusDto request) => Task.FromResult<ReservationDto?>(null);
     }
 
     private sealed class FakeSessionTokenService(UserSession? session) : ISessionTokenService

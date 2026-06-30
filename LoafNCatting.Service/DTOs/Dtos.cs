@@ -19,13 +19,15 @@ public record AdminTableRequestDto(string TableName, int Capacity, string? Area,
 public record StaffTableStatusDto(int TableStatusId);
 public record ReservationDto(int ReservationId, int? UserId, DateOnly Date, TimeOnly Time, string GuestName, string GuestPhoneNumber, int NumberOfGuests, string? Note, string StatusName, int TableId, string TableName);
 public record CreateReservationDto(int? UserId, DateOnly Date, TimeOnly Time, string GuestName, string GuestPhoneNumber, int NumberOfGuests, string? Note, int TableId);
+public record StaffReservationStatusDto(int StatusId);
 public record CartItemRequestDto(int UserId, int ProductId, int Quantity);
 public record CartItemDto(ProductDto Product, int Quantity, decimal UnitPrice, decimal Subtotal);
 public record CartDto(int CartId, int UserId, int TotalQuantity, decimal TotalPrice, List<CartItemDto> Items);
 public record OrderItemRequestDto(int ProductId, int Quantity);
 public record CreateOrderRequestDto(int UserId, int? TableId, int? ReservationId, string? OrderType, string? Note, string PaymentMethod, List<OrderItemRequestDto> Items);
 public record OrderDetailDto(int ProductId, string ProductName, int Quantity, decimal UnitPrice, decimal Subtotal);
-public record OrderDto(int OrderId, DateTime OrderDate, decimal TotalPrice, int? CustomerUserId, string StatusName, string PaymentStatus, List<OrderDetailDto> Items);
+public record OrderDto(int OrderId, DateTime OrderDate, decimal TotalPrice, int? CustomerUserId, string StatusName, string PaymentStatus, List<OrderDetailDto> Items, string? CustomerName = null);
+public record StaffOrderStatusDto(int StatusId);
 public record CreatePaymentLinkRequestDto(int OrderId);
 public record PaymentLinkDto(int OrderId, long OrderCode, int Amount, string CheckoutUrl, string QrCode, string PaymentLinkId);
 public record PaymentStatusDto(int OrderId, string PaymentStatus, string OrderStatus, bool IsPaid);
