@@ -39,8 +39,19 @@ public record NotificationDto(int NotificationId, int? UserId, string Title, str
 public record StoreLocationDto(string StoreName, string Address, string? PhoneNumber, string? OpeningHours, double Latitude, double Longitude);
 public record AdminStoreLocationRequestDto(string StoreName, string Address, string? PhoneNumber, string? OpeningHours, double Latitude, double Longitude);
 public record ConversationDto(int ConversationId, int UserId, DateTime CreatedAt);
+public record ConversationInboxItemDto(
+    int ConversationId,
+    int CustomerUserId,
+    string CustomerName,
+    string? LastMessage,
+    string? LastMessageSender,
+    DateTime? LastMessageSentAt,
+    int UnreadCount,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
 public record MessageDto(int MessageId, int ConversationId, int SenderUserId, string Sender, string Content, bool IsRead, DateTime SentAt);
 public record CreateMessageDto(int ConversationId, int SenderUserId, string Content);
+public record SupportMessageDto(int ConversationId, string Content);
 public record LookupItemDto(int Id, string Name, string? Description);
 public record AdminCategoryRequestDto(string Name, string? Description);
 public record AdminLookupsDto(
