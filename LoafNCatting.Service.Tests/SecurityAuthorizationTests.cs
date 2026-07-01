@@ -502,6 +502,9 @@ public class SecurityAuthorizationTests
 
         public Task<Conversation?> GetByCustomerUserIdAsync(int userId) =>
             Task.FromResult(conversation.CustomerUserId == userId ? conversation : null);
+
+        public Task<IEnumerable<Conversation>> GetInboxAsync() =>
+            Task.FromResult<IEnumerable<Conversation>>([conversation]);
     }
 
     private sealed class FakeMessageRepository(IEnumerable<Message> messages)
@@ -519,6 +522,9 @@ public class SecurityAuthorizationTests
 
         public Task<IEnumerable<Message>> GetByConversationIdAsync(int conversationId) =>
             Task.FromResult<IEnumerable<Message>>(_messages.Where(message => message.ConversationId == conversationId));
+
+        public Task<IEnumerable<Message>> GetByConversationIdForSupportAsync(int conversationId) =>
+            GetByConversationIdAsync(conversationId);
     }
 
     private sealed class FakeUserRepository : FakeRepository<User>, IUserRepository

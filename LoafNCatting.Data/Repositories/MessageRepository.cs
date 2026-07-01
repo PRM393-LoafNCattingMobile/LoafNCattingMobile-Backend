@@ -13,5 +13,13 @@ public class MessageRepository(LoafNcattingDbContext context) : GenericRepositor
             .OrderBy(message => message.SentAt)
             .ToListAsync();
     }
+
+    public async Task<IEnumerable<Message>> GetByConversationIdForSupportAsync(int conversationId)
+    {
+        return await _context.Messages
+            .Where(message => message.ConversationId == conversationId)
+            .OrderBy(message => message.SentAt)
+            .ToListAsync();
+    }
 }
 
