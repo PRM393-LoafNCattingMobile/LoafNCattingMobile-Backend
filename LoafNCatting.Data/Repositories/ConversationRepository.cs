@@ -10,13 +10,5 @@ public class ConversationRepository(LoafNcattingDbContext context) : GenericRepo
     {
         return await _context.Conversations.FirstOrDefaultAsync(conversation => conversation.CustomerUserId == userId);
     }
-
-    public async Task<IEnumerable<Conversation>> GetInboxAsync()
-    {
-        return await _context.Conversations
-            .Include(conversation => conversation.CustomerUser)
-            .Include(conversation => conversation.Messages)
-            .ToListAsync();
-    }
 }
 
