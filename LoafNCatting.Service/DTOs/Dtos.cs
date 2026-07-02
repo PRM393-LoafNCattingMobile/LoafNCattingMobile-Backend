@@ -51,7 +51,7 @@ public record ConversationInboxItemDto(
     DateTime? UpdatedAt);
 public record MessageDto(int MessageId, int ConversationId, int SenderUserId, string Sender, string Content, bool IsRead, DateTime SentAt);
 public record CreateMessageDto(int ConversationId, int SenderUserId, string Content);
-public record SupportMessageDto(int ConversationId, string Content);
+public record SupportMessageDto(string Content);
 public record LookupItemDto(int Id, string Name, string? Description);
 public record AdminCategoryRequestDto(string Name, string? Description);
 public record AdminLookupsDto(

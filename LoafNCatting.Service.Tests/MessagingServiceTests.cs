@@ -1,10 +1,8 @@
-using System.Data;
 using LoafNCatting.Data.Interfaces;
 using LoafNCatting.Data.Models;
 using LoafNCatting.Service.DTOs;
 using LoafNCatting.Service.Implementations;
 using LoafNCatting.Service.Interfaces;
-using Microsoft.EntityFrameworkCore.Storage;
 using Xunit;
 
 namespace LoafNCatting.Service.Tests;
@@ -66,8 +64,7 @@ public class MessagingServiceTests
         var conversation = new Conversation { ConversationId = 12, CustomerUserId = 7 };
         var service = new MessageService(
             new FakeConversationRepository([conversation]),
-            new FakeMessageRepository(
-            [
+            new FakeMessageRepository([
                 new Message
                 {
                     MessageId = 1,
@@ -84,8 +81,7 @@ public class MessagingServiceTests
                     Content = "hi there",
                     SentAt = new DateTime(2026, 7, 1, 10, 1, 0, DateTimeKind.Utc)
                 }
-            ]),
-            new FakeUserRepository());
+            ]));
 
         var messages = await service.GetMessagesAsync(conversation.ConversationId, requestingUserId: 7);
 
@@ -110,8 +106,7 @@ public class MessagingServiceTests
         var conversation = new Conversation { ConversationId = 15, CustomerUserId = 7 };
         IMessageService service = new MessageService(
             new FakeConversationRepository([conversation]),
-            new FakeMessageRepository(
-            [
+            new FakeMessageRepository([
                 new Message
                 {
                     MessageId = 1,
@@ -126,8 +121,7 @@ public class MessagingServiceTests
                     SenderUserId = 21,
                     Content = "Yes, it is."
                 }
-            ]),
-            new FakeUserRepository());
+            ]));
 
         var messages = await service.GetMessagesForSupportAsync(conversation.ConversationId);
 
@@ -143,16 +137,7 @@ public class MessagingServiceTests
         var messages = new FakeMessageRepository([]);
         var service = new MessageService(
             new FakeConversationRepository([conversation]),
-            messages,
-            new FakeUserRepository(new User
-            {
-                UserId = 21,
-                Name = "Support",
-                Email = "support@example.com",
-                Password = "pw",
-                PhoneNumber = "0999999999",
-                Role = new Role { RoleId = 2, RoleName = "Staff" }
-            }));
+            messages);
 
         var result = await service.SendMessageAsync(
             new CreateMessageDto(conversation.ConversationId, SenderUserId: 7, " Need help "),
@@ -173,11 +158,11 @@ public class MessagingServiceTests
         var messages = new FakeMessageRepository([]);
         IMessageService service = new MessageService(
             new FakeConversationRepository([conversation]),
-            messages,
-            new FakeUserRepository());
+            messages);
 
         var result = await service.SendSupportMessageAsync(
-            new SupportMessageDto(conversation.ConversationId, "We're on it."),
+            conversation.ConversationId,
+            new SupportMessageDto("We're on it."),
             staffUserId: 21);
 
         Assert.NotNull(result);
@@ -187,82 +172,4 @@ public class MessagingServiceTests
         Assert.Equal("store", Assert.Single(result!).Sender);
     }
 
-    private abstract class FakeRepository<T> : IGenericRepository<T> where T : class
-    {
-        public virtual Task<T?> GetByIdAsync(int id) => Task.FromResult<T?>(null);
-        public virtual Task<IEnumerable<T>> GetAllAsync() => Task.FromResult<IEnumerable<T>>([]);
-        public virtual Task AddAsync(T entity) => Task.CompletedTask;
-        public virtual void Update(T entity) { }
-        public virtual void Delete(T entity) { }
-        public virtual Task<int> SaveChangesAsync() => Task.FromResult(0);
-        public virtual Task<IDbContextTransaction> BeginTransactionAsync() =>
-            Task.FromResult<IDbContextTransaction>(new FakeTransaction());
-        public virtual Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel) =>
-            Task.FromResult<IDbContextTransaction>(new FakeTransaction());
-    }
-
-    private sealed class FakeTransaction : IDbContextTransaction
-    {
-        public Guid TransactionId { get; } = Guid.NewGuid();
-        public bool SupportsSavepoints => false;
-        public void Commit() { }
-        public Task CommitAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public void Rollback() { }
-        public Task RollbackAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public void CreateSavepoint(string name) { }
-        public Task CreateSavepointAsync(string name, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public void RollbackToSavepoint(string name) { }
-        public Task RollbackToSavepointAsync(string name, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public void ReleaseSavepoint(string name) { }
-        public Task ReleaseSavepointAsync(string name, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public void Dispose() { }
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-    }
-
-    private sealed class FakeConversationRepository(IEnumerable<Conversation> conversations)
-        : FakeRepository<Conversation>, IConversationRepository
-    {
-        private readonly List<Conversation> _conversations = conversations.ToList();
-
-        public override Task<Conversation?> GetByIdAsync(int id) =>
-            Task.FromResult(_conversations.FirstOrDefault(conversation => conversation.ConversationId == id));
-
-        public Task<Conversation?> GetByCustomerUserIdAsync(int userId) =>
-            Task.FromResult(_conversations.FirstOrDefault(conversation => conversation.CustomerUserId == userId));
-
-        public Task<IEnumerable<Conversation>> GetInboxAsync() =>
-            Task.FromResult<IEnumerable<Conversation>>(_conversations);
-    }
-
-    private sealed class FakeMessageRepository(IEnumerable<Message> messages)
-        : FakeRepository<Message>, IMessageRepository
-    {
-        private readonly List<Message> _messages = messages.ToList();
-        public List<Message> AddedMessages { get; } = [];
-
-        public override Task AddAsync(Message entity)
-        {
-            AddedMessages.Add(entity);
-            _messages.Add(entity);
-            return Task.CompletedTask;
-        }
-
-        public Task<IEnumerable<Message>> GetByConversationIdAsync(int conversationId) =>
-            Task.FromResult<IEnumerable<Message>>(_messages.Where(message => message.ConversationId == conversationId));
-
-        public Task<IEnumerable<Message>> GetByConversationIdForSupportAsync(int conversationId) =>
-            GetByConversationIdAsync(conversationId);
-    }
-
-    private sealed class FakeUserRepository(User? firstStaff = null) : FakeRepository<User>, IUserRepository
-    {
-        public Task<IEnumerable<User>> GetAdminUsersAsync(int? roleId, string? search, bool? active) =>
-            Task.FromResult<IEnumerable<User>>([]);
-
-        public Task<User?> GetByIdWithRoleAsync(int id) => Task.FromResult<User?>(null);
-        public Task<bool> ExistsByEmailOrPhoneAsync(string email, string phoneNumber) => Task.FromResult(false);
-        public Task<User?> GetByEmailAsync(string email) => Task.FromResult<User?>(null);
-        public Task<User?> GetByLoginAsync(string email, string phoneNumber) => Task.FromResult<User?>(null);
-        public Task<User?> GetFirstStaffAsync() => Task.FromResult(firstStaff);
-    }
 }

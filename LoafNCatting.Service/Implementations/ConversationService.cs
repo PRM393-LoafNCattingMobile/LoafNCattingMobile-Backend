@@ -21,8 +21,34 @@ public class ConversationService(IConversationRepository conversations) : IConve
         return new ConversationDto(conversation.ConversationId, conversation.CustomerUserId, conversation.CreatedAt);
     }
 
-    public Task<List<ConversationInboxItemDto>> GetInboxAsync() =>
-        throw new NotImplementedException();
+    public async Task<List<ConversationInboxItemDto>> GetInboxAsync()
+    {
+        var items = await conversations.GetInboxAsync();
+
+        return items
+            .Select(conversation =>
+            {
+                var lastMessage = conversation.Messages
+                    .OrderByDescending(message => message.SentAt)
+                    .FirstOrDefault();
+
+                return new ConversationInboxItemDto(
+                    conversation.ConversationId,
+                    conversation.CustomerUserId,
+                    conversation.CustomerUser?.Name ?? $"Customer #{conversation.CustomerUserId}",
+                    lastMessage?.Content,
+                    lastMessage is null
+                        ? null
+                        : lastMessage.SenderUserId == conversation.CustomerUserId ? "customer" : "store",
+                    lastMessage?.SentAt,
+                    conversation.Messages.Count(message =>
+                        message.SenderUserId == conversation.CustomerUserId && !message.IsRead),
+                    conversation.CreatedAt,
+                    conversation.UpdatedAt);
+            })
+            .OrderByDescending(item => item.LastMessageSentAt ?? item.UpdatedAt ?? item.CreatedAt)
+            .ToList();
+    }
 }
 
 
