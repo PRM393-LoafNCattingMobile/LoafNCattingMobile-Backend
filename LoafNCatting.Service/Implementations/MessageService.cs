@@ -8,8 +8,7 @@ namespace LoafNCatting.Service.Implementations;
 
 public class MessageService(
     IConversationRepository conversations,
-    IMessageRepository messages,
-    IUserRepository users) : IMessageService
+    IMessageRepository messages) : IMessageService
 {
     public async Task<List<MessageDto>?> GetMessagesAsync(int conversationId, int requestingUserId)
     {
@@ -20,6 +19,44 @@ public class MessageService(
         }
 
         var items = await messages.GetByConversationIdAsync(conversationId);
+
+        var changed = false;
+        foreach (var item in items.Where(message =>
+                     message.SenderUserId != conversation.CustomerUserId && !message.IsRead))
+        {
+            item.IsRead = true;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await messages.SaveChangesAsync();
+        }
+
+        return items.Select(message => CafeDtoMapper.ToMessageDto(message, conversation.CustomerUserId)).ToList();
+    }
+
+    public async Task<List<MessageDto>?> GetMessagesForSupportAsync(int conversationId)
+    {
+        var conversation = await conversations.GetByIdAsync(conversationId);
+        if (conversation is null)
+        {
+            return null;
+        }
+
+        var items = (await messages.GetByConversationIdForSupportAsync(conversationId)).ToList();
+        var changed = false;
+        foreach (var item in items.Where(message =>
+                     message.SenderUserId == conversation.CustomerUserId && !message.IsRead))
+        {
+            item.IsRead = true;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await messages.SaveChangesAsync();
+        }
 
         return items.Select(message => CafeDtoMapper.ToMessageDto(message, conversation.CustomerUserId)).ToList();
     }
@@ -43,49 +80,43 @@ public class MessageService(
         {
             ConversationId = request.ConversationId,
             SenderUserId = request.SenderUserId,
-            Content = request.Content.Trim()
+            Content = request.Content.Trim(),
+            IsRead = false
         });
-
-        var staff = await users.GetFirstStaffAsync();
-
-        if (staff is not null)
-        {
-            await messages.AddAsync(new Message
-            {
-                ConversationId = request.ConversationId,
-                SenderUserId = staff.UserId,
-                Content = BuildAutoReply(request.Content)
-            });
-        }
+        conversation.UpdatedAt = DateTime.UtcNow;
 
         await messages.SaveChangesAsync();
         return await GetMessagesAsync(request.ConversationId, requestingUserId);
     }
 
-    private static string BuildAutoReply(string input)
+    public async Task<List<MessageDto>?> SendSupportMessageAsync(
+        int conversationId,
+        SupportMessageDto request,
+        int staffUserId)
     {
-        var text = input.ToLowerInvariant();
-        if (text.Contains("hour") || text.Contains("open") || text.Contains("gio"))
+        var conversation = await conversations.GetByIdAsync(conversationId);
+        if (conversation is null)
         {
-            return "Loaf'NCatting is open from 08:00 to 21:00 every day.";
+            return null;
         }
 
-        if (text.Contains("reservation") || text.Contains("book") || text.Contains("dat ban"))
+        if (string.IsNullOrWhiteSpace(request.Content))
         {
-            return "You can reserve a table from the Reservation tab. Pick date, time, guest count, then choose an available table.";
+            return await GetMessagesForSupportAsync(conversationId);
         }
 
-        if (text.Contains("best") || text.Contains("popular") || text.Contains("ban chay"))
+        await messages.AddAsync(new Message
         {
-            return "Best sellers for demo: Bac Xiu, Matcha Latte, Cheese Cake, and Loaf Combo.";
-        }
+            ConversationId = conversationId,
+            SenderUserId = staffUserId,
+            Content = request.Content.Trim(),
+            IsRead = false
+        });
 
-        if (text.Contains("location") || text.Contains("address") || text.Contains("dia chi"))
-        {
-            return "Open the Store Location screen to see our address and directions.";
-        }
+        conversation.UpdatedAt = DateTime.UtcNow;
+        await messages.SaveChangesAsync();
 
-        return "Thanks for messaging Loaf'NCatting. For demo, try asking about opening hours, reservation, best-selling items, or location.";
+        return await GetMessagesForSupportAsync(conversationId);
     }
 }
 
