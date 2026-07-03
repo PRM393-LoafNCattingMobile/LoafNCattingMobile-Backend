@@ -15,7 +15,7 @@ public class AdminTablesController(
     [HttpGet]
     public async Task<ActionResult<List<TableDto>>> GetTables()
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -26,7 +26,7 @@ public class AdminTablesController(
     [HttpGet("{id:int}")]
     public async Task<ActionResult<TableDto>> GetTable(int id)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -38,7 +38,7 @@ public class AdminTablesController(
     [HttpPost]
     public async Task<ActionResult<TableDto>> CreateTable(AdminTableRequestDto request)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -50,7 +50,7 @@ public class AdminTablesController(
     [HttpPut("{id:int}")]
     public async Task<ActionResult<TableDto>> UpdateTable(int id, AdminTableRequestDto request)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -62,7 +62,7 @@ public class AdminTablesController(
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteTable(int id)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }

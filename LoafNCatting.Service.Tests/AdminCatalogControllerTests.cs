@@ -11,14 +11,33 @@ namespace LoafNCatting.Service.Tests;
 public class AdminCatalogControllerTests
 {
     [Fact]
-    public async Task AdminProducts_CreateProduct_ReturnsForbidden_ForStaff()
+    public async Task AdminProducts_GetProducts_AllowsStaff()
+    {
+        var controller = CreateAdminProductsController("Staff");
+
+        var result = await controller.GetProducts(categoryId: null, search: null);
+
+        Assert.IsType<OkObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task AdminProducts_CreateProduct_AllowsStaff()
     {
         var controller = CreateAdminProductsController("Staff");
 
         var result = await controller.CreateProduct(SampleProductRequest());
 
-        var failure = Assert.IsType<ObjectResult>(result.Result);
-        Assert.Equal(StatusCodes.Status403Forbidden, failure.StatusCode);
+        Assert.IsType<OkObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task AdminProducts_DeleteProduct_AllowsStaff()
+    {
+        var controller = CreateAdminProductsController("Staff");
+
+        var result = await controller.DeleteProduct(7);
+
+        Assert.IsType<NoContentResult>(result);
     }
 
     [Fact]
@@ -46,6 +65,26 @@ public class AdminCatalogControllerTests
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var category = Assert.IsType<CategoryDto>(ok.Value);
         Assert.Equal("Trà", category.Name);
+    }
+
+    [Fact]
+    public async Task AdminCategories_GetCategories_AllowsStaff()
+    {
+        var controller = CreateAdminCategoriesController("Staff");
+
+        var result = await controller.GetCategories();
+
+        Assert.IsType<OkObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task AdminCategories_CreateCategory_AllowsStaff()
+    {
+        var controller = CreateAdminCategoriesController("Staff");
+
+        var result = await controller.CreateCategory(new AdminCategoryRequestDto("Trà", null));
+
+        Assert.IsType<OkObjectResult>(result.Result);
     }
 
     private static AdminProductsController CreateAdminProductsController(string roleName)
