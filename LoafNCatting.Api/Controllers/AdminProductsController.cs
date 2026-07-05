@@ -15,7 +15,7 @@ public class AdminProductsController(
     [HttpGet]
     public async Task<ActionResult<List<ProductDto>>> GetProducts([FromQuery] int? categoryId, [FromQuery] string? search)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -26,7 +26,7 @@ public class AdminProductsController(
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ProductDto>> GetProduct(int id)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -38,7 +38,7 @@ public class AdminProductsController(
     [HttpPost]
     public async Task<ActionResult<ProductDto>> CreateProduct(AdminProductRequestDto request)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -50,7 +50,7 @@ public class AdminProductsController(
     [HttpPut("{id:int}")]
     public async Task<ActionResult<ProductDto>> UpdateProduct(int id, AdminProductRequestDto request)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -62,7 +62,7 @@ public class AdminProductsController(
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteProduct(int id)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }

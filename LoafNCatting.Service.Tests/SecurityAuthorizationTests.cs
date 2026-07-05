@@ -136,8 +136,7 @@ public class SecurityAuthorizationTests
                     SenderUserId = 7,
                     Content = "hello"
                 }
-            ]),
-            new FakeUserRepository());
+            ]));
 
         var messages = await service.GetMessagesAsync(conversation.ConversationId, requestingUserId: 99);
 
@@ -158,8 +157,7 @@ public class SecurityAuthorizationTests
                     SenderUserId = 7,
                     Content = "hello"
                 }
-            ]),
-            new FakeUserRepository());
+            ]));
 
         var messages = await service.GetMessagesAsync(conversation.ConversationId, requestingUserId: 7);
 
@@ -176,8 +174,7 @@ public class SecurityAuthorizationTests
         var messages = new FakeMessageRepository([]);
         var service = new MessageService(
             new FakeConversationRepository(conversation),
-            messages,
-            new FakeUserRepository());
+            messages);
 
         var result = await service.SendMessageAsync(
             new CreateMessageDto(conversation.ConversationId, SenderUserId: 99, "hi"),
@@ -194,8 +191,7 @@ public class SecurityAuthorizationTests
         var messages = new FakeMessageRepository([]);
         var service = new MessageService(
             new FakeConversationRepository(conversation),
-            messages,
-            new FakeUserRepository());
+            messages);
 
         var result = await service.SendMessageAsync(
             new CreateMessageDto(conversation.ConversationId, SenderUserId: 7, "hi"),
@@ -502,6 +498,9 @@ public class SecurityAuthorizationTests
 
         public Task<Conversation?> GetByCustomerUserIdAsync(int userId) =>
             Task.FromResult(conversation.CustomerUserId == userId ? conversation : null);
+
+        public Task<IEnumerable<Conversation>> GetInboxAsync() =>
+            Task.FromResult<IEnumerable<Conversation>>([conversation]);
     }
 
     private sealed class FakeMessageRepository(IEnumerable<Message> messages)
@@ -519,6 +518,9 @@ public class SecurityAuthorizationTests
 
         public Task<IEnumerable<Message>> GetByConversationIdAsync(int conversationId) =>
             Task.FromResult<IEnumerable<Message>>(_messages.Where(message => message.ConversationId == conversationId));
+
+        public Task<IEnumerable<Message>> GetByConversationIdForSupportAsync(int conversationId) =>
+            GetByConversationIdAsync(conversationId);
     }
 
     private sealed class FakeUserRepository : FakeRepository<User>, IUserRepository

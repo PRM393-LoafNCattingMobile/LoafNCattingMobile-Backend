@@ -15,7 +15,7 @@ public class AdminCatsController(
     [HttpGet]
     public async Task<ActionResult<List<CatDto>>> GetCats([FromQuery] string? search)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -26,7 +26,7 @@ public class AdminCatsController(
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CatDto>> GetCat(int id)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -38,7 +38,7 @@ public class AdminCatsController(
     [HttpPost]
     public async Task<ActionResult<CatDto>> CreateCat(AdminCatRequestDto request)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -50,7 +50,7 @@ public class AdminCatsController(
     [HttpPut("{id:int}")]
     public async Task<ActionResult<CatDto>> UpdateCat(int id, AdminCatRequestDto request)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -62,7 +62,7 @@ public class AdminCatsController(
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteCat(int id)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }

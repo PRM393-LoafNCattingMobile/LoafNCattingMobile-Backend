@@ -15,7 +15,7 @@ public class AdminCategoriesController(
     [HttpGet]
     public async Task<ActionResult<List<CategoryDto>>> GetCategories()
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -26,7 +26,7 @@ public class AdminCategoriesController(
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CategoryDto>> GetCategory(int id)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -38,7 +38,7 @@ public class AdminCategoriesController(
     [HttpPost]
     public async Task<ActionResult<CategoryDto>> CreateCategory(AdminCategoryRequestDto request)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -50,7 +50,7 @@ public class AdminCategoriesController(
     [HttpPut("{id:int}")]
     public async Task<ActionResult<CategoryDto>> UpdateCategory(int id, AdminCategoryRequestDto request)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }
@@ -62,7 +62,7 @@ public class AdminCategoriesController(
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteCategory(int id)
     {
-        if (!SessionAuthorization.TryRequireAdmin(Request, sessions, out _, out var failure))
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(Request, sessions, out _, out var failure))
         {
             return failure!;
         }

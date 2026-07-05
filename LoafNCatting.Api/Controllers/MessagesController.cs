@@ -3,12 +3,17 @@ using LoafNCatting.Service.Interfaces;
 using LoafNCatting.Service.Auth;
 using LoafNCatting.Api.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using LoafNCatting.Api.Hubs;
 
 namespace LoafNCatting.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class MessagesController(IMessageService service, ISessionTokenService sessions) : ControllerBase
+public class MessagesController(
+    IMessageService service,
+    ISessionTokenService sessions,
+    IHubContext<SupportChatHub> hub) : ControllerBase
 {
     [HttpGet("conversation/{conversationId:int}")]
     public async Task<ActionResult<List<MessageDto>>> GetConversationMessages(int conversationId)
@@ -31,7 +36,17 @@ public class MessagesController(IMessageService service, ISessionTokenService se
         }
 
         var messages = await service.SendMessageAsync(request, request.SenderUserId);
-        return messages is null ? Forbid() : Ok(messages);
+        if (messages is null)
+        {
+            return Forbid();
+        }
+
+        await hub.Clients.Group(SupportChatHub.ConversationGroup(request.ConversationId))
+            .SendAsync(SupportChatHub.ThreadUpdatedEvent, messages);
+        await hub.Clients.Group(SupportChatHub.StaffInboxGroup)
+            .SendAsync(SupportChatHub.InboxUpdatedEvent, request.ConversationId);
+
+        return Ok(messages);
     }
 }
 

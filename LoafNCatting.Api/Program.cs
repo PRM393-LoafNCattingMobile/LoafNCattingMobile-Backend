@@ -1,4 +1,5 @@
 using System.Text.Json;
+using LoafNCatting.Api.Hubs;
 using LoafNCatting.Data.Models;
 using LoafNCatting.Data.Interfaces;
 using LoafNCatting.Data.Repositories;
@@ -20,6 +21,7 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddMemoryCache();
+builder.Services.AddSignalR();
 builder.Services.AddOptions<SmtpMailOptions>()
     .Bind(builder.Configuration.GetSection(SmtpMailOptions.SectionName));
 builder.Services.AddOptions<EmailVerificationOptions>()
@@ -104,6 +106,7 @@ if (app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseCors("FlutterLocal");
 app.MapControllers();
+app.MapHub<SupportChatHub>("/hubs/support-chat");
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.Run();

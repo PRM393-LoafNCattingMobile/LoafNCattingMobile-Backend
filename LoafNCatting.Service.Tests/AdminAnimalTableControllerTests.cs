@@ -11,14 +11,33 @@ namespace LoafNCatting.Service.Tests;
 public class AdminAnimalTableControllerTests
 {
     [Fact]
-    public async Task AdminCats_CreateCat_ReturnsForbidden_ForStaff()
+    public async Task AdminCats_GetCats_AllowsStaff()
+    {
+        var controller = CreateAdminCatsController("Staff");
+
+        var result = await controller.GetCats(search: null);
+
+        Assert.IsType<OkObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task AdminCats_CreateCat_AllowsStaff()
     {
         var controller = CreateAdminCatsController("Staff");
 
         var result = await controller.CreateCat(SampleCatRequest());
 
-        var failure = Assert.IsType<ObjectResult>(result.Result);
-        Assert.Equal(StatusCodes.Status403Forbidden, failure.StatusCode);
+        Assert.IsType<OkObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task AdminCats_DeleteCat_AllowsStaff()
+    {
+        var controller = CreateAdminCatsController("Staff");
+
+        var result = await controller.DeleteCat(7);
+
+        Assert.IsType<NoContentResult>(result);
     }
 
     [Fact]
@@ -48,6 +67,41 @@ public class AdminAnimalTableControllerTests
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var table = Assert.IsType<TableDto>(ok.Value);
         Assert.Equal("A1", table.TableName);
+    }
+
+    [Fact]
+    public async Task AdminTables_CreateTable_AllowsStaff()
+    {
+        var controller = CreateAdminTablesController("Staff");
+
+        var result = await controller.CreateTable(new AdminTableRequestDto(
+            "A1",
+            Capacity: 4,
+            Area: "Main",
+            Description: null,
+            TableStatusId: 1));
+
+        Assert.IsType<OkObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task AdminTables_GetTables_AllowsStaff()
+    {
+        var controller = CreateAdminTablesController("Staff");
+
+        var result = await controller.GetTables();
+
+        Assert.IsType<OkObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task AdminTables_DeleteTable_AllowsStaff()
+    {
+        var controller = CreateAdminTablesController("Staff");
+
+        var result = await controller.DeleteTable(8);
+
+        Assert.IsType<NoContentResult>(result);
     }
 
     [Fact]
