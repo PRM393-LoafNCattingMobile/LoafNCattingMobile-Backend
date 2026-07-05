@@ -22,6 +22,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddMemoryCache();
 builder.Services.AddSignalR();
+builder.Services.AddHealthChecks();
 builder.Services.AddOptions<SmtpMailOptions>()
     .Bind(builder.Configuration.GetSection(SmtpMailOptions.SectionName));
 builder.Services.AddOptions<EmailVerificationOptions>()
@@ -107,6 +108,7 @@ app.UseStaticFiles();
 app.UseCors("FlutterLocal");
 app.MapControllers();
 app.MapHub<SupportChatHub>("/hubs/support-chat");
+app.MapHealthChecks("/health");
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.Run();
