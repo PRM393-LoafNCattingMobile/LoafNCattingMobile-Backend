@@ -5,7 +5,7 @@ namespace LoafNCatting.Service.Mappers;
 
 public static class CafeDtoMapper
 {
-    public static AuthResponseDto ToAuthResponse(User user, string token)
+    public static AuthResponseDto ToAuthResponse(User user, string token, string? avatarUrl = null)
     {
         return new AuthResponseDto(
             user.UserId,
@@ -13,7 +13,8 @@ public static class CafeDtoMapper
             user.Email,
             user.PhoneNumber,
             user.Role.RoleName,
-            token);
+            token,
+            avatarUrl);
     }
 
     public static CategoryDto ToCategoryDto(Category category)
@@ -21,7 +22,7 @@ public static class CafeDtoMapper
         return new CategoryDto(category.CategoryId, category.Name, category.Description);
     }
 
-    public static ProductDto ToProductDto(Product product)
+    public static ProductDto ToProductDto(Product product, string? pictureKey = null)
     {
         return new ProductDto(
             product.ProductId,
@@ -34,10 +35,11 @@ public static class CafeDtoMapper
             product.CategoryId,
             product.Category.Name,
             product.IsAvailable,
-            product.IsAvailable && product.UnitInStock > 0);
+            product.IsAvailable && product.UnitInStock > 0,
+            pictureKey);
     }
 
-    public static CatDto ToCatDto(Cat cat)
+    public static CatDto ToCatDto(Cat cat, string? pictureKey = null)
     {
         return new CatDto(
             cat.CatId,
@@ -50,7 +52,8 @@ public static class CafeDtoMapper
             cat.FriendlinessRating,
             cat.CutenessRating,
             cat.PlayfulnessRating,
-            cat.Status.StatusName);
+            cat.Status.StatusName,
+            pictureKey);
     }
 
     public static TableDto ToTableDto(RestaurantTable table)

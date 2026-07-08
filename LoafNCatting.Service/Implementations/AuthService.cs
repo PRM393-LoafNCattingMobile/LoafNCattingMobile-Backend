@@ -16,9 +16,12 @@ public class AuthService(
     IMailService mailService,
     IOtpGenerator otpGenerator,
     IVerificationEmailComposer verificationEmailComposer,
-    IOptions<EmailVerificationOptions> emailVerificationOptions) : IAuthService
+    IOptions<EmailVerificationOptions> emailVerificationOptions,
+    IMediaStorageService? mediaStorage = null) : IAuthService
 {
     private readonly EmailVerificationOptions _emailVerificationOptions = emailVerificationOptions.Value;
+    private readonly IMediaStorageService _mediaStorage =
+        mediaStorage ?? PassThroughMediaStorageService.Instance;
 
     public async Task<EmailVerificationChallengeDto?> RegisterAsync(RegisterRequestDto request)
     {
@@ -68,7 +71,7 @@ public class AuthService(
         }
 
         return new LoginResultDto(
-            CafeDtoMapper.ToAuthResponse(user, sessionTokens.IssueToken(user)),
+            ToAuthResponse(user, sessionTokens.IssueToken(user)),
             false,
             null);
     }
@@ -95,7 +98,7 @@ public class AuthService(
         user.UpdatedAt = DateTime.UtcNow;
 
         await users.SaveChangesAsync();
-        return CafeDtoMapper.ToAuthResponse(user, sessionTokens.IssueToken(user));
+        return ToAuthResponse(user, sessionTokens.IssueToken(user));
     }
 
     public async Task<EmailVerificationChallengeDto?> ResendVerificationAsync(ResendVerificationRequestDto request)
@@ -126,6 +129,22 @@ public class AuthService(
         return Task.CompletedTask;
     }
 
+    public async Task<AuthResponseDto?> UpdateAvatarAsync(int userId, string? s3Key, string token)
+    {
+        var user = await users.GetByIdWithRoleAsync(userId);
+        if (user is null || !user.IsActive)
+        {
+            return null;
+        }
+
+        user.AvatarUrl = _mediaStorage.NormalizeStoredKey(string.IsNullOrWhiteSpace(s3Key) ? null : s3Key.Trim());
+        user.UpdatedAt = DateTime.UtcNow;
+        users.Update(user);
+        await users.SaveChangesAsync();
+
+        return ToAuthResponse(user, token);
+    }
+
     private Task SendVerificationEmailAsync(User user, string verificationCode, DateTime expiresAtUtc)
     {
         var message = verificationEmailComposer.Compose(
@@ -135,6 +154,18 @@ public class AuthService(
             expiresAtUtc - DateTime.UtcNow);
 
         return mailService.SendAsync(message);
+    }
+
+    private AuthResponseDto ToAuthResponse(User user, string token)
+    {
+        return new AuthResponseDto(
+            user.UserId,
+            user.Name,
+            user.Email,
+            user.PhoneNumber,
+            user.Role.RoleName,
+            token,
+            _mediaStorage.ResolveDisplayUrl(user.AvatarUrl));
     }
 }
 

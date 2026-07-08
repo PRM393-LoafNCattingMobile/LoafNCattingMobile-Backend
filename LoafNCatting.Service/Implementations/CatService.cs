@@ -9,18 +9,22 @@ namespace LoafNCatting.Service.Implementations;
 public class CatService(
     ICatRepository cats,
     ICatStatusRepository catStatuses,
-    IGenderRepository genders) : ICatService
+    IGenderRepository genders,
+    IMediaStorageService? mediaStorage = null) : ICatService
 {
+    private readonly IMediaStorageService _mediaStorage =
+        mediaStorage ?? PassThroughMediaStorageService.Instance;
+
     public async Task<List<CatDto>> GetCatsAsync(string? search)
     {
         var items = await cats.GetCatsAsync(search);
-        return items.Select(CafeDtoMapper.ToCatDto).ToList();
+        return items.Select(ToCatDto).ToList();
     }
 
     public async Task<CatDto?> GetCatAsync(int id)
     {
         var cat = await cats.GetByIdWithDetailsAsync(id);
-        return cat is null ? null : CafeDtoMapper.ToCatDto(cat);
+        return cat is null ? null : ToCatDto(cat);
     }
 
     public async Task<CatDto?> CreateCatAsync(AdminCatRequestDto request)
@@ -39,7 +43,7 @@ public class CatService(
             GenderId = gender?.GenderId,
             Gender = gender,
             Breed = NormalizeOptional(request.Breed),
-            Picture = NormalizeOptional(request.Picture),
+            Picture = NormalizePicture(request.Picture),
             Description = NormalizeOptional(request.Description),
             FriendlinessRating = request.FriendlinessRating,
             CutenessRating = request.CutenessRating,
@@ -51,7 +55,7 @@ public class CatService(
 
         await cats.AddAsync(cat);
         await cats.SaveChangesAsync();
-        return CafeDtoMapper.ToCatDto(cat);
+        return ToCatDto(cat);
     }
 
     public async Task<CatDto?> UpdateCatAsync(int id, AdminCatRequestDto request)
@@ -69,7 +73,7 @@ public class CatService(
         cat.GenderId = gender?.GenderId;
         cat.Gender = gender;
         cat.Breed = NormalizeOptional(request.Breed);
-        cat.Picture = NormalizeOptional(request.Picture);
+        cat.Picture = NormalizePicture(request.Picture);
         cat.Description = NormalizeOptional(request.Description);
         cat.FriendlinessRating = request.FriendlinessRating;
         cat.CutenessRating = request.CutenessRating;
@@ -80,7 +84,7 @@ public class CatService(
 
         cats.Update(cat);
         await cats.SaveChangesAsync();
-        return CafeDtoMapper.ToCatDto(cat);
+        return ToCatDto(cat);
     }
 
     public async Task<CatDto?> UpdateCatStatusAsync(int id, StaffCatStatusDto request)
@@ -98,7 +102,7 @@ public class CatService(
 
         cats.Update(cat);
         await cats.SaveChangesAsync();
-        return CafeDtoMapper.ToCatDto(cat);
+        return ToCatDto(cat);
     }
 
     public async Task<bool> DeleteCatAsync(int id)
@@ -131,6 +135,27 @@ public class CatService(
     private static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private string? NormalizePicture(string? value) =>
+        _mediaStorage.NormalizeStoredKey(NormalizeOptional(value));
+
+    private CatDto ToCatDto(Cat cat)
+    {
+        var normalizedPictureKey = _mediaStorage.NormalizeStoredKey(cat.Picture);
+        return new CatDto(
+            cat.CatId,
+            cat.Name,
+            cat.Age,
+            cat.Gender?.GenderName,
+            cat.Breed,
+            _mediaStorage.ResolveDisplayUrl(cat.Picture),
+            cat.Description,
+            cat.FriendlinessRating,
+            cat.CutenessRating,
+            cat.PlayfulnessRating,
+            cat.Status.StatusName,
+            normalizedPictureKey);
     }
 }
 

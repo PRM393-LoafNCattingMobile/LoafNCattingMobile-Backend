@@ -1,21 +1,21 @@
 namespace LoafNCatting.Service.DTOs;
 
-public record AuthResponseDto(int UserId, string Name, string Email, string PhoneNumber, string RoleName, string Token);
+public record AuthResponseDto(int UserId, string Name, string Email, string PhoneNumber, string RoleName, string Token, string? AvatarUrl = null);
 public record EmailVerificationChallengeDto(string Email, DateTime ExpiresAtUtc);
 public record LoginResultDto(AuthResponseDto? Auth, bool RequiresEmailVerification, string? Email);
 public record RegisterRequestDto(string Name, string Email, string PhoneNumber, string Password);
 public record LoginRequestDto(string Login, string Password);
 public record VerifyEmailRequestDto(string Email, string VerificationCode);
 public record ResendVerificationRequestDto(string Email);
-public record AdminUserDto(int UserId, string Name, string Email, string PhoneNumber, string? Address, string? AvatarUrl, int RoleId, string RoleName, bool IsActive, bool IsEmailVerified, DateTime CreatedAt, DateTime? UpdatedAt);
+public record AdminUserDto(int UserId, string Name, string Email, string PhoneNumber, string? Address, string? AvatarUrl, int RoleId, string RoleName, bool IsActive, bool IsEmailVerified, DateTime CreatedAt, DateTime? UpdatedAt, string? AvatarKey = null);
 public record AdminCreateStaffDto(string Name, string Email, string PhoneNumber, string Password, string? Address, string? AvatarUrl);
 public record AdminUserRoleDto(int RoleId);
 public record AdminUserActiveDto(bool IsActive);
 public record CategoryDto(int CategoryId, string Name, string? Description);
-public record ProductDto(int ProductId, string Name, string? Description, decimal Price, decimal? DiscountPrice, int UnitInStock, string? Picture, int CategoryId, string CategoryName, bool IsAvailable, bool CanOrder);
+public record ProductDto(int ProductId, string Name, string? Description, decimal Price, decimal? DiscountPrice, int UnitInStock, string? Picture, int CategoryId, string CategoryName, bool IsAvailable, bool CanOrder, string? PictureKey = null);
 public record AdminProductRequestDto(string Name, string? Description, decimal Price, decimal? DiscountPrice, int UnitInStock, string? Picture, int CategoryId, bool IsAvailable);
 public record StaffProductAvailabilityDto(int UnitInStock, bool IsAvailable);
-public record CatDto(int CatId, string Name, int? Age, string? GenderName, string? Breed, string? Picture, string? Description, int? FriendlinessRating, int? CutenessRating, int? PlayfulnessRating, string StatusName);
+public record CatDto(int CatId, string Name, int? Age, string? GenderName, string? Breed, string? Picture, string? Description, int? FriendlinessRating, int? CutenessRating, int? PlayfulnessRating, string StatusName, string? PictureKey = null);
 public record AdminCatRequestDto(string Name, int? Age, int? GenderId, string? Breed, string? Picture, string? Description, int? FriendlinessRating, int? CutenessRating, int? PlayfulnessRating, int StatusId);
 public record StaffCatStatusDto(int StatusId);
 public record TableDto(int TableId, string TableName, int Capacity, string? Area, string? Description, string StatusName);
@@ -54,6 +54,9 @@ public record CreateMessageDto(int ConversationId, int SenderUserId, string Cont
 public record SupportMessageDto(string Content);
 public record LookupItemDto(int Id, string Name, string? Description);
 public record AdminCategoryRequestDto(string Name, string? Description);
+public record PresignedUploadRequestDto(string FileName, string ContentType, long FileSizeBytes);
+public record PresignedUploadDto(string UploadUrl, string S3Key, string FileUrl, DateTime ExpiresAtUtc);
+public record UpdateAvatarDto(string? S3Key);
 public record AdminLookupsDto(
     List<LookupItemDto> Roles,
     List<LookupItemDto> OrderStatuses,
