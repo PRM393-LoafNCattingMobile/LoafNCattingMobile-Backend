@@ -73,6 +73,15 @@ builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IMailService, SmtpMailService>();
 builder.Services.AddScoped<IOtpGenerator, OtpGenerator>();
 builder.Services.AddScoped<IVerificationEmailComposer, VerificationEmailComposer>();
+builder.Services.AddSingleton<IMediaStorageService>(serviceProvider =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var bucketName = configuration["S3:BucketName"]?.Trim();
+    var region = configuration["S3:Region"]?.Trim();
+    return string.IsNullOrWhiteSpace(bucketName) || string.IsNullOrWhiteSpace(region)
+        ? PassThroughMediaStorageService.Instance
+        : new S3MediaStorageService(configuration);
+});
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();

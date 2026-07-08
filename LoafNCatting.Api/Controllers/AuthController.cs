@@ -66,12 +66,31 @@ public class AuthController(IAuthService service, ISessionTokenService sessions)
             return failure!;
         }
 
-        var authorization = Request.Headers.Authorization.ToString();
-        var token = authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
-            ? authorization["Bearer ".Length..].Trim()
-            : Request.Headers["X-Session-Token"].ToString();
+        var token = ReadToken();
         await service.LogoutAsync(token);
         return NoContent();
+    }
+
+    [HttpPatch("avatar")]
+    public async Task<ActionResult<AuthResponseDto>> UpdateAvatar(UpdateAvatarDto request)
+    {
+        if (!SessionAuthorization.TryRequireSession(Request, sessions, out var session, out var failure))
+        {
+            return failure!;
+        }
+
+        var updated = await service.UpdateAvatarAsync(session!.UserId, request.S3Key, ReadToken());
+        return updated is null
+            ? NotFound(new { message = "Account not found." })
+            : Ok(updated);
+    }
+
+    private string ReadToken()
+    {
+        var authorization = Request.Headers.Authorization.ToString();
+        return authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+            ? authorization["Bearer ".Length..].Trim()
+            : Request.Headers["X-Session-Token"].ToString();
     }
 }
 

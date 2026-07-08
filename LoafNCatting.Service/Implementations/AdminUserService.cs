@@ -9,8 +9,12 @@ namespace LoafNCatting.Service.Implementations;
 public class AdminUserService(
     IUserRepository users,
     IRoleRepository roles,
-    IPasswordService passwordService) : IAdminUserService
+    IPasswordService passwordService,
+    IMediaStorageService? mediaStorage = null) : IAdminUserService
 {
+    private readonly IMediaStorageService _mediaStorage =
+        mediaStorage ?? PassThroughMediaStorageService.Instance;
+
     public async Task<List<AdminUserDto>> GetUsersAsync(
         int? roleId,
         string? search,
@@ -51,7 +55,7 @@ public class AdminUserService(
             PhoneNumber = phoneNumber,
             Password = passwordService.HashPassword(request.Password),
             Address = request.Address?.Trim(),
-            AvatarUrl = request.AvatarUrl?.Trim(),
+            AvatarUrl = _mediaStorage.NormalizeStoredKey(request.AvatarUrl),
             RoleId = role.RoleId,
             Role = role,
             IsActive = true,
@@ -102,7 +106,7 @@ public class AdminUserService(
         return ToAdminUserDto(user);
     }
 
-    private static AdminUserDto ToAdminUserDto(User user)
+    private AdminUserDto ToAdminUserDto(User user)
     {
         return new AdminUserDto(
             user.UserId,
@@ -110,12 +114,13 @@ public class AdminUserService(
             user.Email,
             user.PhoneNumber,
             user.Address,
-            user.AvatarUrl,
+            _mediaStorage.ResolveDisplayUrl(user.AvatarUrl),
             user.RoleId,
             user.Role.RoleName,
             user.IsActive,
             user.IsEmailVerified,
             user.CreatedAt,
-            user.UpdatedAt);
+            user.UpdatedAt,
+            _mediaStorage.NormalizeStoredKey(user.AvatarUrl));
     }
 }

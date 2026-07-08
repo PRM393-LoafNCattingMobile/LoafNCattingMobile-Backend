@@ -8,18 +8,22 @@ namespace LoafNCatting.Service.Implementations;
 
 public class ProductService(
     IProductRepository products,
-    ICategoryRepository categories) : IProductService
+    ICategoryRepository categories,
+    IMediaStorageService? mediaStorage = null) : IProductService
 {
+    private readonly IMediaStorageService _mediaStorage =
+        mediaStorage ?? PassThroughMediaStorageService.Instance;
+
     public async Task<List<ProductDto>> GetProductsAsync(int? categoryId, string? search)
     {
         var items = await products.GetProductsAsync(categoryId, search);
-        return items.Select(CafeDtoMapper.ToProductDto).ToList();
+        return items.Select(ToProductDto).ToList();
     }
 
     public async Task<ProductDto?> GetProductAsync(int id)
     {
         var product = await products.GetByIdWithCategoryAsync(id);
-        return product is null ? null : CafeDtoMapper.ToProductDto(product);
+        return product is null ? null : ToProductDto(product);
     }
 
     public async Task<ProductDto?> CreateProductAsync(AdminProductRequestDto request)
@@ -37,7 +41,7 @@ public class ProductService(
             Price = request.Price,
             DiscountPrice = request.DiscountPrice,
             UnitInStock = request.UnitInStock,
-            Picture = NormalizeOptional(request.Picture),
+            Picture = NormalizePicture(request.Picture),
             CategoryId = category.CategoryId,
             Category = category,
             IsAvailable = request.IsAvailable,
@@ -46,7 +50,7 @@ public class ProductService(
 
         await products.AddAsync(product);
         await products.SaveChangesAsync();
-        return CafeDtoMapper.ToProductDto(product);
+        return ToProductDto(product);
     }
 
     public async Task<ProductDto?> UpdateProductAsync(int id, AdminProductRequestDto request)
@@ -63,7 +67,7 @@ public class ProductService(
         product.Price = request.Price;
         product.DiscountPrice = request.DiscountPrice;
         product.UnitInStock = request.UnitInStock;
-        product.Picture = NormalizeOptional(request.Picture);
+        product.Picture = NormalizePicture(request.Picture);
         product.CategoryId = category.CategoryId;
         product.Category = category;
         product.IsAvailable = request.IsAvailable;
@@ -71,7 +75,7 @@ public class ProductService(
 
         products.Update(product);
         await products.SaveChangesAsync();
-        return CafeDtoMapper.ToProductDto(product);
+        return ToProductDto(product);
     }
 
     public async Task<ProductDto?> UpdateAvailabilityAsync(int id, StaffProductAvailabilityDto request)
@@ -93,7 +97,7 @@ public class ProductService(
 
         products.Update(product);
         await products.SaveChangesAsync();
-        return CafeDtoMapper.ToProductDto(product);
+        return ToProductDto(product);
     }
 
     public async Task<bool> DeleteProductAsync(int id)
@@ -120,6 +124,27 @@ public class ProductService(
     private static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private string? NormalizePicture(string? value) =>
+        _mediaStorage.NormalizeStoredKey(NormalizeOptional(value));
+
+    private ProductDto ToProductDto(Product product)
+    {
+        var normalizedPictureKey = _mediaStorage.NormalizeStoredKey(product.Picture);
+        return new ProductDto(
+            product.ProductId,
+            product.Name,
+            product.Description,
+            product.Price,
+            product.DiscountPrice,
+            product.UnitInStock,
+            _mediaStorage.ResolveDisplayUrl(product.Picture),
+            product.CategoryId,
+            product.Category.Name,
+            product.IsAvailable,
+            product.IsAvailable && product.UnitInStock > 0,
+            normalizedPictureKey);
     }
 }
 
