@@ -55,17 +55,62 @@ public class PaymentServiceTests
         Assert.Contains(notifications.Items, notification => notification.Type == "payment");
     }
 
+    [Fact]
+    public async Task GetPaymentStatusAsync_CancelsLocalExpiredPendingOrder_AndRestoresStock()
+    {
+        var product = new Product
+        {
+            ProductId = 10,
+            Name = "Bạc Xỉu",
+            Price = 28000m,
+            UnitInStock = 0,
+            IsAvailable = false
+        };
+        var order = SampleOrder(paymentStatus: "Đang chờ thanh toán");
+        order.OrderDate = DateTime.UtcNow.AddSeconds(-2);
+        order.CreatedAt = DateTime.UtcNow.AddSeconds(-2);
+        order.OrderDetails.Add(new OrderDetail
+        {
+            ProductId = product.ProductId,
+            Product = product,
+            Quantity = 1,
+            UnitPrice = product.Price,
+            Subtotal = product.Price
+        });
+        var orders = new FakeOrderRepository(order);
+        var notifications = new FakeNotificationWriter();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Payments:PendingPaymentExpirySeconds"] = "1"
+            })
+            .Build();
+        var service = CreateService("PENDING", orders, notifications, configuration);
+
+        var result = await service.GetPaymentStatusAsync(order.OrderId, userId: 7);
+
+        Assert.NotNull(result);
+        Assert.False(result.IsPaid);
+        Assert.Equal("Đã hủy", order.Payments.First().PaymentStatus);
+        Assert.Equal("Đã hủy", order.OrderStatus.OrderStatusName);
+        Assert.Equal(1, product.UnitInStock);
+        Assert.True(product.IsAvailable);
+        Assert.Equal(1, orders.SaveCount);
+        Assert.Contains(notifications.Items, notification => notification.Type == "payment");
+    }
+
     private static PaymentService CreateService(
         string payOsStatus,
         IOrderRepository orders,
-        INotificationWriter notifications)
+        INotificationWriter notifications,
+        IConfiguration? configuration = null)
     {
         return new PaymentService(
             new FakePayOsClient(payOsStatus),
             orders,
             new FakeOrderStatusRepository(),
             notifications,
-            new ConfigurationBuilder().Build());
+            configuration ?? new ConfigurationBuilder().Build());
     }
 
     private static Order SampleOrder(string paymentStatus) => new()
@@ -135,6 +180,9 @@ public class PaymentServiceTests
 
         public Task<Order?> GetLatestPendingPaymentOrderAsync(int userId) =>
             Task.FromResult<Order?>(null);
+
+        public Task<List<Order>> GetPendingPaymentOrdersAsync(int userId) =>
+            Task.FromResult<List<Order>>(order.CustomerUserId == userId ? [order] : []);
 
         public override Task<int> SaveChangesAsync()
         {

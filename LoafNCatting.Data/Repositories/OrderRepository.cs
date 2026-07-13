@@ -51,6 +51,17 @@ public class OrderRepository(LoafNcattingDbContext context) : GenericRepository<
             .FirstOrDefaultAsync();
     }
 
+    public async Task<List<Order>> GetPendingPaymentOrdersAsync(int userId)
+    {
+        return await IncludeDetails(_context.Orders)
+            .Where(order =>
+                order.CustomerUserId == userId &&
+                order.Payments.Any(payment => payment.PaymentStatus == "Đang chờ thanh toán") &&
+                order.OrderStatus.OrderStatusName == "Đang chờ")
+            .OrderByDescending(order => order.OrderDate)
+            .ToListAsync();
+    }
+
     private static IQueryable<Order> IncludeDetails(IQueryable<Order> query)
     {
         return query.Include(order => order.CustomerUser)

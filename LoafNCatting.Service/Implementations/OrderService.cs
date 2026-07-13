@@ -4,6 +4,7 @@ using LoafNCatting.Service.Interfaces;
 using LoafNCatting.Service.Mappers;
 using LoafNCatting.Data.Models;
 using LoafNCatting.Data.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace LoafNCatting.Service.Implementations;
 
@@ -12,10 +13,12 @@ public class OrderService(
     IProductRepository products,
     INotificationWriter notifications,
     IOrderStatusRepository orderStatuses,
-    IPaymentMethodRepository paymentMethods) : IOrderService
+    IPaymentMethodRepository paymentMethods,
+    IConfiguration? configuration = null) : IOrderService
 {
     public async Task<OrderDto?> CreateOrderAsync(CreateOrderRequestDto request)
     {
+        await ExpirePendingPaymentOrdersAsync(request.UserId);
         if (await orders.GetLatestPendingPaymentOrderAsync(request.UserId) is not null)
         {
             return null;
@@ -119,25 +122,37 @@ public class OrderService(
 
     public async Task<List<OrderDto>> GetUserOrdersAsync(int userId)
     {
+        await ExpirePendingPaymentOrdersAsync(userId);
         var items = await orders.GetUserOrdersAsync(userId);
         return items.Select(CafeDtoMapper.ToOrderDto).ToList();
     }
 
     public async Task<OrderDto?> GetPendingPaymentOrderAsync(int userId)
     {
+        await ExpirePendingPaymentOrdersAsync(userId);
         var order = await orders.GetLatestPendingPaymentOrderAsync(userId);
         return order is null ? null : CafeDtoMapper.ToOrderDto(order);
     }
 
     public async Task<List<OrderDto>> GetStaffOrdersAsync(int? statusId, DateOnly? date)
     {
-        var items = await orders.GetStaffOrdersAsync(statusId, date);
+        var items = (await orders.GetStaffOrdersAsync(statusId, date)).ToList();
+        if (await ExpirePendingPaymentOrdersAsync(items))
+        {
+            items = (await orders.GetStaffOrdersAsync(statusId, date)).ToList();
+        }
+
         return items.Select(CafeDtoMapper.ToOrderDto).ToList();
     }
 
     public async Task<OrderDto?> GetStaffOrderAsync(int id)
     {
         var order = await orders.GetByIdWithDetailsAsync(id);
+        if (order is not null)
+        {
+            await ExpirePendingPaymentOrdersAsync([order]);
+        }
+
         return order is null ? null : CafeDtoMapper.ToOrderDto(order);
     }
 
@@ -160,6 +175,11 @@ public class OrderService(
         order.OrderStatus = targetStatus;
         order.StaffUserId = actingUserId;
         order.UpdatedAt = DateTime.UtcNow;
+        if (targetStatus.OrderStatusName == PendingPaymentPolicy.CancelledOrderStatus)
+        {
+            PendingPaymentPolicy.RestoreReservedStock(order);
+        }
+
         orders.Update(order);
         await orders.SaveChangesAsync();
         await notifications.CreateAsync(
@@ -168,6 +188,41 @@ public class OrderService(
             NotificationContentForOrderStatus(order.OrderId, targetStatus.OrderStatusName),
             "order");
         return CafeDtoMapper.ToOrderDto(order);
+    }
+
+    private async Task<bool> ExpirePendingPaymentOrdersAsync(int userId)
+    {
+        var pendingOrders = await orders.GetPendingPaymentOrdersAsync(userId);
+        return await ExpirePendingPaymentOrdersAsync(pendingOrders);
+    }
+
+    private async Task<bool> ExpirePendingPaymentOrdersAsync(IEnumerable<Order> pendingOrders)
+    {
+        var expiredOrders = new List<Order>();
+        foreach (var order in pendingOrders)
+        {
+            if (await PendingPaymentPolicy.ExpireIfNeededAsync(order, orderStatuses, configuration))
+            {
+                expiredOrders.Add(order);
+            }
+        }
+
+        if (expiredOrders.Count == 0)
+        {
+            return false;
+        }
+
+        await orders.SaveChangesAsync();
+        foreach (var order in expiredOrders)
+        {
+            await notifications.CreateAsync(
+                order.CustomerUserId,
+                "Thanh toán đã hết hạn",
+                $"Đơn #{order.OrderId} đã hết hạn thanh toán và được hủy.",
+                "payment");
+        }
+
+        return true;
     }
 
     private async Task<OrderDto?> GetOrderDtoAsync(int orderId)

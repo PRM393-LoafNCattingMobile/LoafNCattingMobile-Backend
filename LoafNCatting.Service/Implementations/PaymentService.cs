@@ -1,4 +1,5 @@
 using LoafNCatting.Data.Interfaces;
+using LoafNCatting.Data.Models;
 using LoafNCatting.Service.DTOs;
 using LoafNCatting.Service.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -22,8 +23,14 @@ public class PaymentService(
             return null;
         }
 
-        // Đã thanh toán rồi thì không tạo link mới.
-        if (payment.PaymentStatus == "Đã thanh toán")
+        if (await ExpirePendingPaymentIfNeededAsync(order))
+        {
+            return null;
+        }
+
+        // Chỉ đơn đang chờ thanh toán mới được tạo link PayOS.
+        if (payment.PaymentStatus != PendingPaymentPolicy.PendingPaymentStatus ||
+            order.OrderStatus.OrderStatusName != PendingPaymentPolicy.PendingOrderStatus)
         {
             return null;
         }
@@ -56,7 +63,7 @@ public class PaymentService(
         var result = await payOS.CreatePaymentLinkAsync(paymentData);
 
         payment.TransactionCode = orderCode.ToString();
-        payment.PaymentStatus = "Đang chờ thanh toán";
+        payment.PaymentStatus = PendingPaymentPolicy.PendingPaymentStatus;
         await orders.SaveChangesAsync();
 
         return new PaymentLinkDto(
@@ -78,14 +85,24 @@ public class PaymentService(
         }
 
         // Đã đánh dấu thanh toán -> trả luôn, khỏi gọi PayOS.
-        if (payment.PaymentStatus == "Đã thanh toán")
+        if (payment.PaymentStatus == PendingPaymentPolicy.PaidPaymentStatus)
         {
             return new PaymentStatusDto(orderId, payment.PaymentStatus, order.OrderStatus.OrderStatusName, true);
+        }
+
+        if (payment.PaymentStatus == PendingPaymentPolicy.CancelledPaymentStatus)
+        {
+            return new PaymentStatusDto(orderId, payment.PaymentStatus, order.OrderStatus.OrderStatusName, false);
         }
 
         // Chưa tạo link (chưa có orderCode) -> trả trạng thái hiện tại.
         if (!long.TryParse(payment.TransactionCode, out var orderCode))
         {
+            if (await ExpirePendingPaymentIfNeededAsync(order))
+            {
+                return new PaymentStatusDto(orderId, payment.PaymentStatus, order.OrderStatus.OrderStatusName, false);
+            }
+
             return new PaymentStatusDto(orderId, payment.PaymentStatus, order.OrderStatus.OrderStatusName, false);
         }
 
@@ -94,7 +111,7 @@ public class PaymentService(
 
         if (info.status == "PAID")
         {
-            payment.PaymentStatus = "Đã thanh toán";
+            payment.PaymentStatus = PendingPaymentPolicy.PaidPaymentStatus;
             payment.PaidAt = DateTime.UtcNow;
             await orders.SaveChangesAsync();
             await notifications.CreateAsync(
@@ -107,23 +124,37 @@ public class PaymentService(
 
         if (info.status is "CANCELLED" or "EXPIRED")
         {
-            payment.PaymentStatus = "Đã hủy";
-            if (order.OrderStatus.OrderStatusName == "Đang chờ")
-            {
-                var cancelledStatus = await orderStatuses.GetByNameAsync("Đã hủy");
-                order.OrderStatusId = cancelledStatus.OrderStatusId;
-                order.OrderStatus = cancelledStatus;
-                order.UpdatedAt = DateTime.UtcNow;
-            }
-
+            await PendingPaymentPolicy.CancelPendingOrderAsync(order, payment, orderStatuses);
             await orders.SaveChangesAsync();
-            await notifications.CreateAsync(
-                order.CustomerUserId,
-                "Thanh toán chưa hoàn tất",
-                $"Thanh toán cho đơn #{orderId} đã bị hủy hoặc hết hạn.",
-                "payment");
+            await NotifyPaymentCancelledAsync(order);
+        }
+
+        if (await ExpirePendingPaymentIfNeededAsync(order))
+        {
+            return new PaymentStatusDto(orderId, payment.PaymentStatus, order.OrderStatus.OrderStatusName, false);
         }
 
         return new PaymentStatusDto(orderId, payment.PaymentStatus, order.OrderStatus.OrderStatusName, false);
+    }
+
+    private async Task<bool> ExpirePendingPaymentIfNeededAsync(Order order)
+    {
+        if (!await PendingPaymentPolicy.ExpireIfNeededAsync(order, orderStatuses, configuration))
+        {
+            return false;
+        }
+
+        await orders.SaveChangesAsync();
+        await NotifyPaymentCancelledAsync(order);
+        return true;
+    }
+
+    private Task<NotificationDto?> NotifyPaymentCancelledAsync(Order order)
+    {
+        return notifications.CreateAsync(
+            order.CustomerUserId,
+            "Thanh toán chưa hoàn tất",
+            $"Thanh toán cho đơn #{order.OrderId} đã bị hủy hoặc hết hạn.",
+            "payment");
     }
 }
