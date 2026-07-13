@@ -3,7 +3,9 @@ using LoafNCatting.Data.Interfaces;
 using LoafNCatting.Data.Models;
 using LoafNCatting.Service.DTOs;
 using LoafNCatting.Service.Implementations;
+using LoafNCatting.Service.Interfaces;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Configuration;
 
 namespace LoafNCatting.Service.Tests;
 
@@ -55,16 +57,97 @@ public class OrderServiceTests
         Assert.Equal(1, orders.AddedOrder?.OrderDetails.Count);
     }
 
+    [Fact]
+    public async Task CreateOrderAsync_RejectsNewOrder_WhenUserHasPendingPaymentOrder()
+    {
+        var product = TestProduct(unitInStock: 3);
+        var orders = new FakeOrderRepository
+        {
+            PendingPaymentOrder = new Order
+            {
+                OrderId = 99,
+                CustomerUserId = 7
+            }
+        };
+        var service = CreateService(orders, new FakeProductRepository(product));
+        var request = new CreateOrderRequestDto(
+            7,
+            null,
+            null,
+            "Mang di",
+            null,
+            "Tien mat",
+            [new OrderItemRequestDto(product.ProductId, 1)]);
+
+        var order = await service.CreateOrderAsync(request);
+
+        Assert.Null(order);
+        Assert.Null(orders.AddedOrder);
+        Assert.Equal(3, product.UnitInStock);
+        Assert.Equal(0, orders.SaveCount);
+    }
+
+    [Fact]
+    public async Task GetPendingPaymentOrderAsync_ExpiresOldPendingPaymentOrder_AndRestoresStock()
+    {
+        var product = TestProduct(unitInStock: 0);
+        product.IsAvailable = false;
+        var order = new Order
+        {
+            OrderId = 99,
+            CustomerUserId = 7,
+            OrderDate = DateTime.UtcNow.AddSeconds(-2),
+            CreatedAt = DateTime.UtcNow.AddSeconds(-2),
+            OrderStatusId = 1,
+            OrderStatus = new OrderStatus { OrderStatusId = 1, OrderStatusName = "Đang chờ" },
+            Payments =
+            {
+                new Payment { PaymentStatus = "Đang chờ thanh toán" }
+            },
+            OrderDetails =
+            {
+                new OrderDetail
+                {
+                    ProductId = product.ProductId,
+                    Product = product,
+                    Quantity = 2,
+                    UnitPrice = product.Price,
+                    Subtotal = product.Price * 2
+                }
+            }
+        };
+        var orders = new FakeOrderRepository();
+        orders.PendingPaymentOrders.Add(order);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Payments:PendingPaymentExpirySeconds"] = "1"
+            })
+            .Build();
+        var service = CreateService(orders, new FakeProductRepository(product), configuration);
+
+        var pending = await service.GetPendingPaymentOrderAsync(7);
+
+        Assert.Null(pending);
+        Assert.Equal("Đã hủy", order.Payments.First().PaymentStatus);
+        Assert.Equal("Đã hủy", order.OrderStatus.OrderStatusName);
+        Assert.Equal(2, product.UnitInStock);
+        Assert.True(product.IsAvailable);
+        Assert.Equal(1, orders.SaveCount);
+    }
+
     private static OrderService CreateService(
         IOrderRepository orders,
-        IProductRepository products)
+        IProductRepository products,
+        IConfiguration? configuration = null)
     {
         return new OrderService(
             orders,
             products,
             new FakeNotificationRepository(),
             new FakeOrderStatusRepository(),
-            new FakePaymentMethodRepository());
+            new FakePaymentMethodRepository(),
+            configuration);
     }
 
     private static Product TestProduct(int unitInStock) => new()
@@ -81,6 +164,8 @@ public class OrderServiceTests
     private sealed class FakeOrderRepository : FakeRepository<Order>, IOrderRepository
     {
         public Order? AddedOrder { get; private set; }
+        public Order? PendingPaymentOrder { get; init; }
+        public List<Order> PendingPaymentOrders { get; } = [];
 
         public override Task AddAsync(Order entity)
         {
@@ -107,6 +192,32 @@ public class OrderServiceTests
         public Task<Order?> GetByIdWithDetailsAsync(int orderId)
         {
             return Task.FromResult(AddedOrder?.OrderId == orderId ? AddedOrder : null);
+        }
+
+        public Task<Order?> GetLatestPendingPaymentOrderAsync(int userId)
+        {
+            var pendingOrder = PendingPaymentOrders
+                .Where(order =>
+                    order.CustomerUserId == userId &&
+                    order.Payments.Any(payment => payment.PaymentStatus == "Đang chờ thanh toán") &&
+                    order.OrderStatus.OrderStatusName == "Đang chờ")
+                .OrderByDescending(order => order.OrderDate)
+                .FirstOrDefault();
+
+            return Task.FromResult(pendingOrder ?? (PendingPaymentOrder?.CustomerUserId == userId
+                ? PendingPaymentOrder
+                : null));
+        }
+
+        public Task<List<Order>> GetPendingPaymentOrdersAsync(int userId)
+        {
+            return Task.FromResult(PendingPaymentOrders
+                .Where(order =>
+                    order.CustomerUserId == userId &&
+                    order.Payments.Any(payment => payment.PaymentStatus == "Đang chờ thanh toán") &&
+                    order.OrderStatus.OrderStatusName == "Đang chờ")
+                .OrderByDescending(order => order.OrderDate)
+                .ToList());
         }
     }
 
@@ -148,11 +259,18 @@ public class OrderServiceTests
         }
     }
 
-    private sealed class FakeNotificationRepository : FakeRepository<Notification>, INotificationRepository
+    private sealed class FakeNotificationRepository : FakeRepository<Notification>, INotificationRepository, INotificationWriter
     {
         public Task<IEnumerable<Notification>> GetByUserIdAsync(int userId)
         {
             return Task.FromResult(Enumerable.Empty<Notification>());
+        }
+
+        public Task<NotificationDto?> CreateAsync(int? userId, string title, string content, string type)
+        {
+            return Task.FromResult<NotificationDto?>(userId.HasValue
+                ? new NotificationDto(1, userId, title, content, type, false, DateTime.UtcNow)
+                : null);
         }
     }
 

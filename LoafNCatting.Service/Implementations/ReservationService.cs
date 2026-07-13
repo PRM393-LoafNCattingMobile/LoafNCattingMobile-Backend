@@ -9,13 +9,19 @@ namespace LoafNCatting.Service.Implementations;
 public class ReservationService(
     IReservationRepository reservations,
     IReservationStatusRepository reservationStatuses,
-    INotificationRepository notifications,
-    ITableService tableService) : IReservationService
+    INotificationWriter notifications,
+    ITableService tableService,
+    IRestaurantTableRepository tables,
+    ITableStatusRepository tableStatuses) : IReservationService
 {
     public async Task<ReservationDto?> CreateReservationAsync(CreateReservationDto request)
     {
         var available = await tableService.GetAvailableTablesAsync(request.Date, request.Time, request.NumberOfGuests);
-        if (!available.Any(table => table.TableId == request.TableId))
+        var assignedTable = request.TableId.HasValue
+            ? available.FirstOrDefault(table => table.TableId == request.TableId.Value)
+            : available.FirstOrDefault();
+
+        if (assignedTable is null)
         {
             return null;
         }
@@ -31,12 +37,17 @@ public class ReservationService(
             NumberOfGuests = request.NumberOfGuests,
             Note = request.Note,
             StatusId = status.StatusId,
-            TableId = request.TableId
+            Status = status,
+            TableId = assignedTable.TableId
         };
 
         await reservations.AddAsync(reservation);
-        await AddNotificationAsync(request.UserId, "Đã nhận đặt bàn", "Lịch đặt bàn của bạn đang chờ xác nhận.", "reservation");
         await reservations.SaveChangesAsync();
+        await notifications.CreateAsync(
+            request.UserId,
+            "Đã nhận đặt bàn",
+            "Lịch đặt bàn của bạn đang chờ xác nhận.",
+            "reservation");
         return await GetReservationDtoAsync(reservation.ReservationId);
     }
 
@@ -70,8 +81,14 @@ public class ReservationService(
         reservation.StatusId = targetStatus.StatusId;
         reservation.Status = targetStatus;
         reservation.UpdatedAt = DateTime.UtcNow;
+        await SyncTableStatusAsync(reservation, targetStatus.StatusName);
         reservations.Update(reservation);
         await reservations.SaveChangesAsync();
+        await notifications.CreateAsync(
+            reservation.UserId,
+            NotificationTitleForReservationStatus(targetStatus.StatusName),
+            NotificationContentForReservationStatus(reservation.ReservationId, targetStatus.StatusName),
+            "reservation");
         return CafeDtoMapper.ToReservationDto(reservation);
     }
 
@@ -81,20 +98,71 @@ public class ReservationService(
         return reservation is null ? null : CafeDtoMapper.ToReservationDto(reservation);
     }
 
-    private async Task AddNotificationAsync(int? userId, string title, string content, string type)
+    private async Task SyncTableStatusAsync(Reservation reservation, string reservationStatus)
     {
-        if (!userId.HasValue)
+        var nextTableStatusName = reservationStatus switch
+        {
+            "Đã xác nhận" => "Đã đặt",
+            "Đã hủy" or "Hoàn thành" or "Không đến" => "Trống",
+            _ => null
+        };
+
+        if (nextTableStatusName is null)
         {
             return;
         }
 
-        await notifications.AddAsync(new Notification
+        if (nextTableStatusName == "Trống" &&
+            await reservations.HasActiveReservationForTableAsync(
+                reservation.TableId,
+                reservation.ReservationId))
         {
-            UserId = userId.Value,
-            Title = title,
-            Content = content,
-            Type = type
-        });
+            return;
+        }
+
+        var table = reservation.Table is not null && reservation.Table.TableId == reservation.TableId
+            ? reservation.Table
+            : await tables.GetByIdWithStatusAsync(reservation.TableId);
+        var tableStatus = await GetTableStatusByNameAsync(nextTableStatusName);
+        if (table is null || tableStatus is null)
+        {
+            return;
+        }
+
+        table.TableStatusId = tableStatus.TableStatusId;
+        table.TableStatus = tableStatus;
+        tables.Update(table);
+    }
+
+    private async Task<TableStatus?> GetTableStatusByNameAsync(string statusName)
+    {
+        var statuses = await tableStatuses.GetAllAsync();
+        return statuses.FirstOrDefault(status =>
+            string.Equals(status.StatusName, statusName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string NotificationTitleForReservationStatus(string statusName)
+    {
+        return statusName switch
+        {
+            "Đã xác nhận" => "Đặt bàn đã được xác nhận",
+            "Hoàn thành" => "Lịch đặt bàn đã hoàn thành",
+            "Đã hủy" => "Lịch đặt bàn đã bị hủy",
+            "Không đến" => "Lịch đặt bàn được ghi nhận không đến",
+            _ => "Cập nhật đặt bàn"
+        };
+    }
+
+    private static string NotificationContentForReservationStatus(int reservationId, string statusName)
+    {
+        return statusName switch
+        {
+            "Đã xác nhận" => $"Lịch đặt bàn #{reservationId} đã được nhân viên xác nhận.",
+            "Hoàn thành" => $"Lịch đặt bàn #{reservationId} đã hoàn thành.",
+            "Đã hủy" => $"Lịch đặt bàn #{reservationId} đã bị hủy.",
+            "Không đến" => $"Lịch đặt bàn #{reservationId} đã được ghi nhận là không đến.",
+            _ => $"Lịch đặt bàn #{reservationId} đã được cập nhật trạng thái {statusName}."
+        };
     }
 
     private static bool CanTransition(string currentStatus, string targetStatus)

@@ -109,8 +109,22 @@ public class StaffOrderReservationControllerTests
         public Task<List<OrderDto>> GetUserOrdersAsync(int userId) =>
             Task.FromResult<List<OrderDto>>([]);
 
+        public Task<OrderDto?> GetPendingPaymentOrderAsync(int userId) =>
+            Task.FromResult<OrderDto?>(null);
+
         public Task<List<OrderDto>> GetStaffOrdersAsync(int? statusId, DateOnly? date) =>
             Task.FromResult<List<OrderDto>>([]);
+
+        public Task<OrderDto?> GetStaffOrderAsync(int id) =>
+            Task.FromResult<OrderDto?>(new OrderDto(
+                id,
+                DateTime.UtcNow,
+                45000m,
+                CustomerUserId: 5,
+                StatusName: "Đang chờ",
+                PaymentStatus: "Đã thanh toán",
+                Items: [],
+                CustomerName: "Customer"));
 
         public Task<OrderDto?> UpdateOrderStatusAsync(
             int id,

@@ -3,6 +3,7 @@ using LoafNCatting.Data.Interfaces;
 using LoafNCatting.Data.Models;
 using LoafNCatting.Service.DTOs;
 using LoafNCatting.Service.Implementations;
+using LoafNCatting.Service.Interfaces;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace LoafNCatting.Service.Tests;
@@ -86,6 +87,25 @@ public class StaffOrderReservationServiceTests
     }
 
     [Fact]
+    public async Task GetStaffOrderAsync_ReturnsOrderDetailForCooking_WhenOrderExists()
+    {
+        var order = SampleOrder("Đang chờ", statusId: 1);
+        var orders = new FakeOrderRepository(order);
+        var service = CreateOrderService(
+            orders,
+            new FakeOrderStatusRepository(order.OrderStatus));
+
+        var result = await service.GetStaffOrderAsync(order.OrderId);
+
+        Assert.NotNull(result);
+        Assert.Equal(order.OrderId, result.OrderId);
+        Assert.Equal("Customer", result.CustomerName);
+        var detail = Assert.Single(result.Items);
+        Assert.Equal("Latte", detail.ProductName);
+        Assert.Equal(2, detail.Quantity);
+    }
+
+    [Fact]
     public async Task UpdateOrderStatusAsync_AssignsActingStaffAndTimestamp_WhenTransitionIsAllowed()
     {
         var order = SampleOrder("Đang chờ", statusId: 1);
@@ -111,6 +131,29 @@ public class StaffOrderReservationServiceTests
         Assert.NotNull(order.UpdatedAt);
         Assert.True(order.UpdatedAt >= startedAt);
         Assert.Equal(1, orders.SaveCount);
+    }
+
+    [Fact]
+    public async Task UpdateOrderStatusAsync_RejectsPreparing_WhenPaymentIsPending()
+    {
+        var order = SampleOrder("Đang chờ", statusId: 1, paymentStatus: "Đang chờ thanh toán");
+        var orders = new FakeOrderRepository(order);
+        var service = CreateOrderService(
+            orders,
+            new FakeOrderStatusRepository(new OrderStatus
+            {
+                OrderStatusId = 2,
+                OrderStatusName = "Đang chuẩn bị"
+            }));
+
+        var result = await service.UpdateOrderStatusAsync(
+            order.OrderId,
+            actingUserId: 77,
+            new StaffOrderStatusDto(StatusId: 2));
+
+        Assert.Null(result);
+        Assert.Equal("Đang chờ", order.OrderStatus.OrderStatusName);
+        Assert.Equal(0, orders.SaveCount);
     }
 
     [Theory]
@@ -156,18 +199,104 @@ public class StaffOrderReservationServiceTests
             new FakePaymentMethodRepository());
     }
 
+    [Fact]
+    public async Task CreateReservationAsync_AssignsFirstAvailableTable_WhenTableIdIsMissing()
+    {
+        var reservations = new FakeReservationRepository();
+        var tableService = new FakeTableService([
+            new TableDto(2, "A2", 2, "Tầng 1", null, "Trống"),
+            new TableDto(3, "A3", 4, "Tầng 1", null, "Trống")
+        ]);
+        var service = CreateReservationService(
+            reservations,
+            new FakeReservationStatusRepository(new ReservationStatus
+            {
+                StatusId = 1,
+                StatusName = "Đang chờ"
+            }),
+            tableService);
+
+        var result = await service.CreateReservationAsync(new CreateReservationDto(
+            UserId: 5,
+            Date: new DateOnly(2026, 6, 30),
+            Time: new TimeOnly(18, 30),
+            GuestName: "Customer",
+            GuestPhoneNumber: "0900000000",
+            NumberOfGuests: 2,
+            Note: null,
+            TableId: null));
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result.TableId);
+        Assert.Equal(2, reservations.AddedReservation?.TableId);
+        Assert.Equal(1, reservations.SaveCount);
+    }
+
+    [Fact]
+    public async Task UpdateReservationStatusAsync_SetsTableBooked_WhenConfirmed()
+    {
+        var reservation = SampleReservation("Đang chờ", statusId: 1);
+        var tableRepository = new FakeTableRepository();
+        var service = CreateReservationService(
+            new FakeReservationRepository(reservation),
+            new FakeReservationStatusRepository(new ReservationStatus
+            {
+                StatusId = 2,
+                StatusName = "Đã xác nhận"
+            }),
+            tableRepository: tableRepository);
+
+        var result = await service.UpdateReservationStatusAsync(
+            reservation.ReservationId,
+            new StaffReservationStatusDto(StatusId: 2));
+
+        Assert.NotNull(result);
+        Assert.Equal("Đã đặt", reservation.Table.TableStatus.StatusName);
+        Assert.Same(reservation.Table, tableRepository.UpdatedTable);
+    }
+
+    [Fact]
+    public async Task UpdateReservationStatusAsync_ReleasesTable_WhenCancelledAndNoOtherActiveReservation()
+    {
+        var reservation = SampleReservation("Đang chờ", statusId: 1);
+        reservation.Table.TableStatus = new TableStatus { TableStatusId = 2, StatusName = "Đã đặt" };
+        var tableRepository = new FakeTableRepository();
+        var service = CreateReservationService(
+            new FakeReservationRepository(reservation),
+            new FakeReservationStatusRepository(new ReservationStatus
+            {
+                StatusId = 3,
+                StatusName = "Đã hủy"
+            }),
+            tableRepository: tableRepository);
+
+        var result = await service.UpdateReservationStatusAsync(
+            reservation.ReservationId,
+            new StaffReservationStatusDto(StatusId: 3));
+
+        Assert.NotNull(result);
+        Assert.Equal("Trống", reservation.Table.TableStatus.StatusName);
+        Assert.Same(reservation.Table, tableRepository.UpdatedTable);
+    }
+
     private static ReservationService CreateReservationService(
         IReservationRepository reservations,
-        IReservationStatusRepository statuses)
+        IReservationStatusRepository statuses,
+        FakeTableService? tableService = null,
+        FakeTableRepository? tableRepository = null)
     {
         return new ReservationService(
             reservations,
             statuses,
             new FakeNotificationRepository(),
-            new FakeTableService());
+            tableService ?? new FakeTableService(),
+            tableRepository ?? new FakeTableRepository(),
+            new FakeTableStatusRepository(
+                new TableStatus { TableStatusId = 1, StatusName = "Trống" },
+                new TableStatus { TableStatusId = 2, StatusName = "Đã đặt" }));
     }
 
-    private static Order SampleOrder(string statusName, int statusId) => new()
+    private static Order SampleOrder(string statusName, int statusId, string paymentStatus = "Đã thanh toán") => new()
     {
         OrderId = 10,
         OrderDate = DateTime.UtcNow,
@@ -179,6 +308,27 @@ public class StaffOrderReservationServiceTests
         {
             OrderStatusId = statusId,
             OrderStatusName = statusName
+        },
+        Payments =
+        {
+            new Payment
+            {
+                PaymentId = 1,
+                PaymentAmount = 45000m,
+                PaymentStatus = paymentStatus
+            }
+        },
+        OrderDetails =
+        {
+            new OrderDetail
+            {
+                OrderDetailId = 1,
+                ProductId = 9,
+                Product = new Product { ProductId = 9, Name = "Latte" },
+                Quantity = 2,
+                UnitPrice = 22500m,
+                Subtotal = 45000m
+            }
         }
     };
 
@@ -218,6 +368,12 @@ public class StaffOrderReservationServiceTests
 
         public Task<Order?> GetByIdWithDetailsAsync(int orderId) =>
             Task.FromResult<Order?>(order.OrderId == orderId ? order : null);
+
+        public Task<Order?> GetLatestPendingPaymentOrderAsync(int userId) =>
+            Task.FromResult<Order?>(null);
+
+        public Task<List<Order>> GetPendingPaymentOrdersAsync(int userId) =>
+            Task.FromResult<List<Order>>([]);
     }
 
     private sealed class FakeOrderStatusRepository(OrderStatus status)
@@ -230,11 +386,26 @@ public class StaffOrderReservationServiceTests
             Task.FromResult(status);
     }
 
-    private sealed class FakeReservationRepository(Reservation reservation)
+    private sealed class FakeReservationRepository(Reservation? reservation = null)
         : FakeRepository<Reservation>, IReservationRepository
     {
         public int? LastStatusId { get; private set; }
         public DateOnly? LastDate { get; private set; }
+        public Reservation? AddedReservation { get; private set; }
+        public bool HasActiveReservationForTableResult { get; set; }
+
+        public override Task AddAsync(Reservation entity)
+        {
+            entity.ReservationId = 100;
+            entity.Table = new RestaurantTable
+            {
+                TableId = entity.TableId,
+                TableName = $"Table {entity.TableId}",
+                TableStatus = new TableStatus { TableStatusId = 1, StatusName = "Trống" }
+            };
+            AddedReservation = entity;
+            return Task.CompletedTask;
+        }
 
         public Task<IEnumerable<Reservation>> GetUserReservationsAsync(int userId) =>
             Task.FromResult<IEnumerable<Reservation>>([]);
@@ -245,15 +416,22 @@ public class StaffOrderReservationServiceTests
         {
             LastStatusId = statusId;
             LastDate = date;
-            return Task.FromResult<IEnumerable<Reservation>>([reservation]);
+            return Task.FromResult<IEnumerable<Reservation>>(reservation is null ? [] : [reservation]);
         }
 
         public Task<Reservation?> GetByIdWithDetailsAsync(int reservationId) =>
             Task.FromResult<Reservation?>(
-                reservation.ReservationId == reservationId ? reservation : null);
+                reservation?.ReservationId == reservationId
+                    ? reservation
+                    : AddedReservation?.ReservationId == reservationId
+                        ? AddedReservation
+                        : null);
 
         public Task<List<int>> GetUnavailableTableIdsAsync(DateOnly date, TimeOnly time) =>
             Task.FromResult<List<int>>([]);
+
+        public Task<bool> HasActiveReservationForTableAsync(int tableId, int excludeReservationId) =>
+            Task.FromResult(HasActiveReservationForTableResult);
     }
 
     private sealed class FakeReservationStatusRepository(ReservationStatus status)
@@ -282,10 +460,17 @@ public class StaffOrderReservationServiceTests
     }
 
     private sealed class FakeNotificationRepository
-        : FakeRepository<Notification>, INotificationRepository
+        : FakeRepository<Notification>, INotificationRepository, INotificationWriter
     {
         public Task<IEnumerable<Notification>> GetByUserIdAsync(int userId) =>
             Task.FromResult<IEnumerable<Notification>>([]);
+
+        public Task<NotificationDto?> CreateAsync(int? userId, string title, string content, string type)
+        {
+            return Task.FromResult<NotificationDto?>(userId.HasValue
+                ? new NotificationDto(1, userId, title, content, type, false, DateTime.UtcNow)
+                : null);
+        }
     }
 
     private sealed class FakePaymentMethodRepository
@@ -295,12 +480,12 @@ public class StaffOrderReservationServiceTests
             Task.FromResult(new PaymentMethod { MethodId = 1, MethodName = name });
     }
 
-    private sealed class FakeTableService : LoafNCatting.Service.Interfaces.ITableService
+    private sealed class FakeTableService(List<TableDto>? availableTables = null) : LoafNCatting.Service.Interfaces.ITableService
     {
         public Task<List<TableDto>> GetAvailableTablesAsync(
             DateOnly date,
             TimeOnly time,
-            int guestCount) => Task.FromResult<List<TableDto>>([]);
+            int guestCount) => Task.FromResult(availableTables ?? []);
 
         public Task<List<TableDto>> GetTablesAsync() => Task.FromResult<List<TableDto>>([]);
 
@@ -318,14 +503,39 @@ public class StaffOrderReservationServiceTests
         public Task<bool> DeleteTableAsync(int id) => Task.FromResult(false);
     }
 
-    private abstract class FakeRepository<T> : IGenericRepository<T> where T : class
+    private sealed class FakeTableRepository : FakeRepository<RestaurantTable>, IRestaurantTableRepository
     {
+        public RestaurantTable? UpdatedTable { get; private set; }
+
+        public Task<IEnumerable<RestaurantTable>> GetAvailableTablesAsync(
+            DateOnly date,
+            TimeOnly time,
+            int guestCount) => Task.FromResult<IEnumerable<RestaurantTable>>([]);
+
+        public Task<IEnumerable<RestaurantTable>> GetTablesAsync() =>
+            Task.FromResult<IEnumerable<RestaurantTable>>([]);
+
+        public Task<RestaurantTable?> GetByIdWithStatusAsync(int id) =>
+            Task.FromResult<RestaurantTable?>(null);
+
+        public override void Update(RestaurantTable entity)
+        {
+            UpdatedTable = entity;
+        }
+    }
+
+    private sealed class FakeTableStatusRepository(params TableStatus[] statuses)
+        : FakeRepository<TableStatus>(statuses), ITableStatusRepository;
+
+    private abstract class FakeRepository<T>(params T[] items) : IGenericRepository<T> where T : class
+    {
+        protected List<T> Items { get; } = items.ToList();
         public int SaveCount { get; private set; }
 
         public virtual Task<T?> GetByIdAsync(int id) => Task.FromResult<T?>(null);
 
         public virtual Task<IEnumerable<T>> GetAllAsync() =>
-            Task.FromResult<IEnumerable<T>>([]);
+            Task.FromResult<IEnumerable<T>>(Items);
 
         public virtual Task AddAsync(T entity) => Task.CompletedTask;
 

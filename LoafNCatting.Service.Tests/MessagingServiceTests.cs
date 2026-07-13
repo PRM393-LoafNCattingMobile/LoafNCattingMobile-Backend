@@ -152,6 +152,30 @@ public class MessagingServiceTests
     }
 
     [Fact]
+    public async Task SendCustomerMessageAsync_CreatesChatNotifications_ForSupportUsers()
+    {
+        var conversation = new Conversation { ConversationId = 18, CustomerUserId = 7 };
+        var notifications = new FakeNotificationWriter();
+        var service = new MessageService(
+            new FakeConversationRepository([conversation]),
+            new FakeMessageRepository([]),
+            notifications,
+            new FakeUserRepository(users:
+            [
+                SupportUser(21, "Staff"),
+                SupportUser(22, "Admin"),
+                SupportUser(7, "Customer")
+            ]));
+
+        await service.SendMessageAsync(
+            new CreateMessageDto(conversation.ConversationId, SenderUserId: 7, " Need help "),
+            requestingUserId: 7);
+
+        Assert.Equal([21, 22], notifications.Items.Select(item => item.UserId).ToArray());
+        Assert.All(notifications.Items, item => Assert.Equal("chat", item.Type));
+    }
+
+    [Fact]
     public async Task SendSupportMessageAsync_AddsStaffMessage_AndPreservesSenderUserId()
     {
         var conversation = new Conversation { ConversationId = 22, CustomerUserId = 7 };
@@ -172,4 +196,33 @@ public class MessagingServiceTests
         Assert.Equal("store", Assert.Single(result!).Sender);
     }
 
+    [Fact]
+    public async Task SendSupportMessageAsync_CreatesChatNotification_ForCustomer()
+    {
+        var conversation = new Conversation { ConversationId = 22, CustomerUserId = 7 };
+        var notifications = new FakeNotificationWriter();
+        IMessageService service = new MessageService(
+            new FakeConversationRepository([conversation]),
+            new FakeMessageRepository([]),
+            notifications);
+
+        await service.SendSupportMessageAsync(
+            conversation.ConversationId,
+            new SupportMessageDto("We're on it."),
+            staffUserId: 21);
+
+        var notification = Assert.Single(notifications.Items);
+        Assert.Equal(7, notification.UserId);
+        Assert.Equal("chat", notification.Type);
+    }
+
+    private static User SupportUser(int userId, string roleName) => new()
+    {
+        UserId = userId,
+        Name = $"User {userId}",
+        Email = $"user{userId}@example.com",
+        Password = "pw",
+        PhoneNumber = $"090000{userId}",
+        Role = new Role { RoleId = userId, RoleName = roleName }
+    };
 }

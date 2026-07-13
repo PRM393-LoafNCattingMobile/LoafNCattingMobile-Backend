@@ -29,6 +29,22 @@ public class StaffOrdersController(
         return Ok(await service.GetStaffOrdersAsync(status, date));
     }
 
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<OrderDto>> GetOrder(int id)
+    {
+        if (!SessionAuthorization.TryRequireStaffOrAdmin(
+                Request,
+                sessions,
+                out _,
+                out var failure))
+        {
+            return failure!;
+        }
+
+        var order = await service.GetStaffOrderAsync(id);
+        return order is null ? NotFound() : Ok(order);
+    }
+
     [HttpPut("{id:int}/status")]
     public async Task<ActionResult<OrderDto>> UpdateStatus(
         int id,

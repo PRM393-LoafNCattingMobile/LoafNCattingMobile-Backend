@@ -6,6 +6,8 @@ namespace LoafNCatting.Data.Repositories;
 
 public class ReservationRepository(LoafNcattingDbContext context) : GenericRepository<Reservation>(context), IReservationRepository
 {
+    private static readonly string[] ActiveReservationStatuses = ["Đang chờ", "Đã xác nhận"];
+
     public async Task<IEnumerable<Reservation>> GetUserReservationsAsync(int userId)
     {
         return await IncludeDetails(_context.Reservations)
@@ -47,9 +49,18 @@ public class ReservationRepository(LoafNcattingDbContext context) : GenericRepos
             .Where(reservation =>
                 reservation.Date == date &&
                 reservation.Time == time &&
-                reservation.Status.StatusName != "Cancelled")
+                ActiveReservationStatuses.Contains(reservation.Status.StatusName))
             .Select(reservation => reservation.TableId)
             .ToListAsync();
+    }
+
+    public async Task<bool> HasActiveReservationForTableAsync(int tableId, int excludeReservationId)
+    {
+        return await _context.Reservations
+            .AnyAsync(reservation =>
+                reservation.TableId == tableId &&
+                reservation.ReservationId != excludeReservationId &&
+                ActiveReservationStatuses.Contains(reservation.Status.StatusName));
     }
 
     private static IQueryable<Reservation> IncludeDetails(IQueryable<Reservation> query)
