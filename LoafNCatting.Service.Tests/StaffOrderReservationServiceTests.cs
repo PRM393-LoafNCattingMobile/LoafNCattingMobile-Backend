@@ -271,6 +271,36 @@ public class StaffOrderReservationServiceTests
     }
 
     [Fact]
+    public async Task CreateReservationAsync_RejectsInvalidGuestPhoneNumber()
+    {
+        var reservations = new FakeReservationRepository();
+        var service = CreateReservationService(
+            reservations,
+            new FakeReservationStatusRepository(new ReservationStatus
+            {
+                StatusId = 1,
+                StatusName = "Đang chờ"
+            }),
+            new FakeTableService([
+                new TableDto(2, "A2", 2, "Tầng 1", null, "Trống")
+            ]));
+
+        var result = await service.CreateReservationAsync(new CreateReservationDto(
+            UserId: 5,
+            Date: DateOnly.FromDateTime(DateTime.Now.AddDays(7)),
+            Time: new TimeOnly(18, 30),
+            GuestName: "Customer",
+            GuestPhoneNumber: "090000abcd",
+            NumberOfGuests: 2,
+            Note: null,
+            TableId: null));
+
+        Assert.Null(result);
+        Assert.Empty(reservations.AddedReservations);
+        Assert.Equal(0, reservations.SaveCount);
+    }
+
+    [Fact]
     public async Task CreateReservationAsync_NotifiesActiveStaffUsers()
     {
         var notifications = new FakeNotificationRepository();

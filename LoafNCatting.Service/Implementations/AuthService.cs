@@ -4,6 +4,7 @@ using LoafNCatting.Service.Mappers;
 using LoafNCatting.Service.Auth;
 using LoafNCatting.Data.Models;
 using LoafNCatting.Data.Interfaces;
+using LoafNCatting.Service.Validation;
 using Microsoft.Extensions.Options;
 
 namespace LoafNCatting.Service.Implementations;
@@ -27,7 +28,8 @@ public class AuthService(
     {
         var email = request.Email.Trim().ToLowerInvariant();
         var phone = request.PhoneNumber.Trim();
-        if (await users.ExistsByEmailOrPhoneAsync(email, phone))
+        if (!PhoneNumberValidator.IsValid(phone) ||
+            await users.ExistsByEmailOrPhoneAsync(email, phone))
         {
             return null;
         }
@@ -134,7 +136,10 @@ public class AuthService(
         var user = await users.GetByIdWithRoleAsync(userId);
         var name = request.Name.Trim();
         var phoneNumber = request.PhoneNumber.Trim();
-        if (user is null || !user.IsActive || string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(phoneNumber))
+        if (user is null ||
+            !user.IsActive ||
+            string.IsNullOrWhiteSpace(name) ||
+            !PhoneNumberValidator.IsValid(phoneNumber))
         {
             return null;
         }

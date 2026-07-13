@@ -3,6 +3,7 @@ using LoafNCatting.Service.Interfaces;
 using LoafNCatting.Service.Mappers;
 using LoafNCatting.Data.Models;
 using LoafNCatting.Data.Interfaces;
+using LoafNCatting.Service.Validation;
 
 namespace LoafNCatting.Service.Implementations;
 
@@ -17,7 +18,9 @@ public class ReservationService(
 {
     public async Task<ReservationDto?> CreateReservationAsync(CreateReservationDto request)
     {
-        if (request.Date.ToDateTime(request.Time) <= DateTime.Now)
+        var guestPhoneNumber = request.GuestPhoneNumber.Trim();
+        if (request.Date.ToDateTime(request.Time) <= DateTime.Now ||
+            !PhoneNumberValidator.IsValid(guestPhoneNumber))
         {
             return null;
         }
@@ -39,7 +42,7 @@ public class ReservationService(
                 Date = request.Date,
                 Time = request.Time,
                 GuestName = request.GuestName.Trim(),
-                GuestPhoneNumber = request.GuestPhoneNumber.Trim(),
+                GuestPhoneNumber = guestPhoneNumber,
                 NumberOfGuests = request.NumberOfGuests,
                 Note = request.Note,
                 StatusId = status.StatusId,

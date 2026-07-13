@@ -2,6 +2,7 @@ using LoafNCatting.Data.Interfaces;
 using LoafNCatting.Data.Models;
 using LoafNCatting.Service.DTOs;
 using LoafNCatting.Service.Interfaces;
+using LoafNCatting.Service.Validation;
 using System.Net.Mail;
 
 namespace LoafNCatting.Service.Implementations;
@@ -35,8 +36,7 @@ public class AdminUserService(
             email.Length > 255 ||
             !MailAddress.TryCreate(email, out var parsedEmail) ||
             !string.Equals(parsedEmail.Address, email, StringComparison.OrdinalIgnoreCase) ||
-            string.IsNullOrWhiteSpace(phoneNumber) ||
-            phoneNumber.Length > 20 ||
+            !PhoneNumberValidator.IsValid(phoneNumber) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
             return null;

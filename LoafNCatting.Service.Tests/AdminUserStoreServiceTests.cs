@@ -81,6 +81,9 @@ public class AdminUserStoreServiceTests
     [InlineData("Staff", "", "0901234567", "password")]
     [InlineData("Staff", "not-an-email", "0901234567", "password")]
     [InlineData("Staff", "staff@example.com", "", "password")]
+    [InlineData("Staff", "staff@example.com", "090123456", "password")]
+    [InlineData("Staff", "staff@example.com", "090123456789", "password")]
+    [InlineData("Staff", "staff@example.com", "090123abcd", "password")]
     [InlineData("Staff", "staff@example.com", "123456789012345678901", "password")]
     [InlineData("Staff", "staff@example.com", "0901234567", "")]
     public async Task CreateStaffAsync_RejectsInvalidRequiredData(
