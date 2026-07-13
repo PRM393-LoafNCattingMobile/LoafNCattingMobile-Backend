@@ -446,6 +446,9 @@ public class SecurityAuthorizationTests
         {
             return Task.FromResult(order ?? AddedOrders.FirstOrDefault(item => item.OrderId == orderId));
         }
+
+        public Task<Order?> GetLatestPendingPaymentOrderAsync(int userId) =>
+            Task.FromResult<Order?>(null);
     }
 
     private sealed class FakeProductRepository(List<Product> products)

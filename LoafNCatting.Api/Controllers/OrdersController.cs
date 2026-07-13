@@ -32,6 +32,17 @@ public class OrdersController(IOrderService service, ISessionTokenService sessio
 
         return Ok(await service.GetUserOrdersAsync(userId));
     }
+
+    [HttpGet("user/{userId:int}/pending-payment")]
+    public async Task<ActionResult<OrderDto?>> GetPendingPaymentOrder(int userId)
+    {
+        if (!SessionAuthorization.TryRequireUserSession(Request, sessions, userId, out var failure))
+        {
+            return failure!;
+        }
+
+        return Ok(await service.GetPendingPaymentOrderAsync(userId));
+    }
 }
 
 

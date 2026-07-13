@@ -368,6 +368,9 @@ public class StaffOrderReservationServiceTests
 
         public Task<Order?> GetByIdWithDetailsAsync(int orderId) =>
             Task.FromResult<Order?>(order.OrderId == orderId ? order : null);
+
+        public Task<Order?> GetLatestPendingPaymentOrderAsync(int userId) =>
+            Task.FromResult<Order?>(null);
     }
 
     private sealed class FakeOrderStatusRepository(OrderStatus status)

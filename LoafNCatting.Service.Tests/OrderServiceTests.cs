@@ -56,6 +56,36 @@ public class OrderServiceTests
         Assert.Equal(1, orders.AddedOrder?.OrderDetails.Count);
     }
 
+    [Fact]
+    public async Task CreateOrderAsync_RejectsNewOrder_WhenUserHasPendingPaymentOrder()
+    {
+        var product = TestProduct(unitInStock: 3);
+        var orders = new FakeOrderRepository
+        {
+            PendingPaymentOrder = new Order
+            {
+                OrderId = 99,
+                CustomerUserId = 7
+            }
+        };
+        var service = CreateService(orders, new FakeProductRepository(product));
+        var request = new CreateOrderRequestDto(
+            7,
+            null,
+            null,
+            "Mang di",
+            null,
+            "Tien mat",
+            [new OrderItemRequestDto(product.ProductId, 1)]);
+
+        var order = await service.CreateOrderAsync(request);
+
+        Assert.Null(order);
+        Assert.Null(orders.AddedOrder);
+        Assert.Equal(3, product.UnitInStock);
+        Assert.Equal(0, orders.SaveCount);
+    }
+
     private static OrderService CreateService(
         IOrderRepository orders,
         IProductRepository products)
@@ -82,6 +112,7 @@ public class OrderServiceTests
     private sealed class FakeOrderRepository : FakeRepository<Order>, IOrderRepository
     {
         public Order? AddedOrder { get; private set; }
+        public Order? PendingPaymentOrder { get; init; }
 
         public override Task AddAsync(Order entity)
         {
@@ -108,6 +139,13 @@ public class OrderServiceTests
         public Task<Order?> GetByIdWithDetailsAsync(int orderId)
         {
             return Task.FromResult(AddedOrder?.OrderId == orderId ? AddedOrder : null);
+        }
+
+        public Task<Order?> GetLatestPendingPaymentOrderAsync(int userId)
+        {
+            return Task.FromResult(PendingPaymentOrder?.CustomerUserId == userId
+                ? PendingPaymentOrder
+                : null);
         }
     }
 

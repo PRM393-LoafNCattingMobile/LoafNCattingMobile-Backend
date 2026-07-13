@@ -133,6 +133,9 @@ public class PaymentServiceTests
         public Task<Order?> GetByIdWithDetailsAsync(int orderId) =>
             Task.FromResult<Order?>(order.OrderId == orderId ? order : null);
 
+        public Task<Order?> GetLatestPendingPaymentOrderAsync(int userId) =>
+            Task.FromResult<Order?>(null);
+
         public override Task<int> SaveChangesAsync()
         {
             SaveCount++;

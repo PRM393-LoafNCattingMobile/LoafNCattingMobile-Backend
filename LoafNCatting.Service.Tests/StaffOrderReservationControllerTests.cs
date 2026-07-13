@@ -109,6 +109,9 @@ public class StaffOrderReservationControllerTests
         public Task<List<OrderDto>> GetUserOrdersAsync(int userId) =>
             Task.FromResult<List<OrderDto>>([]);
 
+        public Task<OrderDto?> GetPendingPaymentOrderAsync(int userId) =>
+            Task.FromResult<OrderDto?>(null);
+
         public Task<List<OrderDto>> GetStaffOrdersAsync(int? statusId, DateOnly? date) =>
             Task.FromResult<List<OrderDto>>([]);
 

@@ -2,19 +2,22 @@ using LoafNCatting.Data.Interfaces;
 using LoafNCatting.Data.Models;
 using LoafNCatting.Service.DTOs;
 using LoafNCatting.Service.Interfaces;
-using LoafNCatting.Service.Mappers;
 
 namespace LoafNCatting.Service.Implementations;
 
 public class CartService(
     ICartRepository carts,
     ICartItemRepository cartItems,
-    IProductRepository products) : ICartService
+    IProductRepository products,
+    IMediaStorageService? mediaStorage = null) : ICartService
 {
+    private readonly IMediaStorageService _mediaStorage =
+        mediaStorage ?? PassThroughMediaStorageService.Instance;
+
     public async Task<CartDto> GetCartAsync(int userId)
     {
         var cart = await carts.GetByUserIdWithItemsAsync(userId);
-        return cart is null ? EmptyCart(userId) : CafeDtoMapper.ToCartDto(cart);
+        return cart is null ? EmptyCart(userId) : ToCartDto(cart);
     }
 
     public async Task<CartDto?> AddItemAsync(CartItemRequestDto request)
@@ -47,7 +50,7 @@ public class CartService(
 
         Touch(cart);
         await carts.SaveChangesAsync();
-        return CafeDtoMapper.ToCartDto(cart);
+        return ToCartDto(cart);
     }
 
     public async Task<CartDto?> UpdateItemAsync(CartItemRequestDto request)
@@ -67,7 +70,7 @@ public class CartService(
                 await carts.SaveChangesAsync();
             }
 
-            return CafeDtoMapper.ToCartDto(cart);
+            return ToCartDto(cart);
         }
 
         var product = await products.GetByIdWithCategoryAsync(request.ProductId);
@@ -89,7 +92,7 @@ public class CartService(
 
         Touch(cart);
         await carts.SaveChangesAsync();
-        return CafeDtoMapper.ToCartDto(cart);
+        return ToCartDto(cart);
     }
 
     public async Task<CartDto> RemoveItemAsync(int userId, int productId)
@@ -107,7 +110,7 @@ public class CartService(
             await carts.SaveChangesAsync();
         }
 
-        return CafeDtoMapper.ToCartDto(cart);
+        return ToCartDto(cart);
     }
 
     public async Task<CartDto> ClearCartAsync(int userId)
@@ -124,7 +127,7 @@ public class CartService(
         }
 
         await carts.SaveChangesAsync();
-        return CafeDtoMapper.ToCartDto(cart);
+        return ToCartDto(cart);
     }
 
     private async Task<Cart> GetOrCreateCartAsync(int userId)
@@ -182,6 +185,43 @@ public class CartService(
     private static void Touch(Cart cart)
     {
         cart.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private CartDto ToCartDto(Cart cart)
+    {
+        var items = cart.CartItems
+            .OrderBy(item => item.CreatedAt)
+            .Select(item => new CartItemDto(
+                ToProductDto(item.Product),
+                item.Quantity,
+                item.UnitPrice,
+                item.UnitPrice * item.Quantity))
+            .ToList();
+
+        return new CartDto(
+            cart.CartId,
+            cart.UserId,
+            items.Sum(item => item.Quantity),
+            items.Sum(item => item.Subtotal),
+            items);
+    }
+
+    private ProductDto ToProductDto(Product product)
+    {
+        var normalizedPictureKey = _mediaStorage.NormalizeStoredKey(product.Picture);
+        return new ProductDto(
+            product.ProductId,
+            product.Name,
+            product.Description,
+            product.Price,
+            product.DiscountPrice,
+            product.UnitInStock,
+            _mediaStorage.ResolveDisplayUrl(product.Picture),
+            product.CategoryId,
+            product.Category.Name,
+            product.IsAvailable,
+            product.IsAvailable && product.UnitInStock > 0,
+            normalizedPictureKey);
     }
 
     private static CartDto EmptyCart(int userId)

@@ -16,6 +16,11 @@ public class OrderService(
 {
     public async Task<OrderDto?> CreateOrderAsync(CreateOrderRequestDto request)
     {
+        if (await orders.GetLatestPendingPaymentOrderAsync(request.UserId) is not null)
+        {
+            return null;
+        }
+
         if (request.Items.Count == 0)
         {
             return null;
@@ -116,6 +121,12 @@ public class OrderService(
     {
         var items = await orders.GetUserOrdersAsync(userId);
         return items.Select(CafeDtoMapper.ToOrderDto).ToList();
+    }
+
+    public async Task<OrderDto?> GetPendingPaymentOrderAsync(int userId)
+    {
+        var order = await orders.GetLatestPendingPaymentOrderAsync(userId);
+        return order is null ? null : CafeDtoMapper.ToOrderDto(order);
     }
 
     public async Task<List<OrderDto>> GetStaffOrdersAsync(int? statusId, DateOnly? date)
