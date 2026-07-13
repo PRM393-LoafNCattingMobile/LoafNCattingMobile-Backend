@@ -1,5 +1,6 @@
 using System.Text.Json;
 using LoafNCatting.Api.Hubs;
+using LoafNCatting.Api.Infrastructure;
 using LoafNCatting.Data.Models;
 using LoafNCatting.Data.Interfaces;
 using LoafNCatting.Data.Repositories;
@@ -98,8 +99,12 @@ builder.Services.AddSingleton(new PayOS(
     payosConfig["ClientId"] ?? throw new InvalidOperationException("PayOS:ClientId is not configured"),
     payosConfig["ApiKey"] ?? throw new InvalidOperationException("PayOS:ApiKey is not configured"),
     payosConfig["ChecksumKey"] ?? throw new InvalidOperationException("PayOS:ChecksumKey is not configured")));
+builder.Services.AddSingleton<IPayOsClient, PayOsClient>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
-builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<INotificationService>(serviceProvider =>
+    serviceProvider.GetRequiredService<NotificationService>());
+builder.Services.AddScoped<INotificationWriter, RealtimeNotificationWriter>();
 builder.Services.AddScoped<IStoreLocationService, StoreLocationService>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
@@ -117,6 +122,7 @@ app.UseStaticFiles();
 app.UseCors("FlutterLocal");
 app.MapControllers();
 app.MapHub<SupportChatHub>("/hubs/support-chat");
+app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHealthChecks("/health");
 app.MapGet("/", () => Results.Redirect("/swagger"));
 

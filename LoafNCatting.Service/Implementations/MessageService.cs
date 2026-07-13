@@ -8,7 +8,9 @@ namespace LoafNCatting.Service.Implementations;
 
 public class MessageService(
     IConversationRepository conversations,
-    IMessageRepository messages) : IMessageService
+    IMessageRepository messages,
+    INotificationWriter? notifications = null,
+    IUserRepository? users = null) : IMessageService
 {
     public async Task<List<MessageDto>?> GetMessagesAsync(int conversationId, int requestingUserId)
     {
@@ -86,6 +88,7 @@ public class MessageService(
         conversation.UpdatedAt = DateTime.UtcNow;
 
         await messages.SaveChangesAsync();
+        await NotifySupportUsersAsync(conversation, request.Content.Trim());
         return await GetMessagesAsync(request.ConversationId, requestingUserId);
     }
 
@@ -115,8 +118,53 @@ public class MessageService(
 
         conversation.UpdatedAt = DateTime.UtcNow;
         await messages.SaveChangesAsync();
+        await NotifyCustomerAsync(conversation.CustomerUserId, request.Content.Trim());
 
         return await GetMessagesForSupportAsync(conversationId);
+    }
+
+    private async Task NotifySupportUsersAsync(Conversation conversation, string content)
+    {
+        if (notifications is null || users is null)
+        {
+            return;
+        }
+
+        var supportUsers = await users.GetAdminUsersAsync(roleId: null, search: null, active: true);
+        foreach (var user in supportUsers.Where(IsSupportUser))
+        {
+            await notifications.CreateAsync(
+                user.UserId,
+                "Tin nhắn khách hàng mới",
+                $"Khách hàng #{conversation.CustomerUserId}: {Summarize(content)}",
+                "chat");
+        }
+    }
+
+    private async Task NotifyCustomerAsync(int customerUserId, string content)
+    {
+        if (notifications is null)
+        {
+            return;
+        }
+
+        await notifications.CreateAsync(
+            customerUserId,
+            "Tin nhắn mới từ Loaf'N Catting",
+            Summarize(content),
+            "chat");
+    }
+
+    private static bool IsSupportUser(User user)
+    {
+        return string.Equals(user.Role?.RoleName, "Admin", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(user.Role?.RoleName, "Staff", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string Summarize(string content)
+    {
+        const int maxLength = 80;
+        return content.Length <= maxLength ? content : $"{content[..maxLength]}...";
     }
 }
 

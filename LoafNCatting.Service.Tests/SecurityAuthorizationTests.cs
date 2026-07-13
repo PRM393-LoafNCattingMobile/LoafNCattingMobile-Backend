@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
-using Net.payOS;
+using Net.payOS.Types;
 
 namespace LoafNCatting.Service.Tests;
 
@@ -83,8 +83,10 @@ public class SecurityAuthorizationTests
     {
         var order = SampleOrder(customerUserId: 7);
         var service = new PaymentService(
-            new PayOS("client-id", "api-key", "checksum-key"),
+            new FakePayOsClient(),
             new FakeOrderRepository(order),
+            new FakeOrderStatusRepository(),
+            new FakeNotificationRepository(),
             new ConfigurationBuilder().Build());
 
         var status = await service.GetPaymentStatusAsync(order.OrderId, userId: 99);
@@ -97,8 +99,10 @@ public class SecurityAuthorizationTests
     {
         var order = SampleOrder(customerUserId: 7);
         var service = new PaymentService(
-            new PayOS("client-id", "api-key", "checksum-key"),
+            new FakePayOsClient(),
             new FakeOrderRepository(order),
+            new FakeOrderStatusRepository(),
+            new FakeNotificationRepository(),
             new ConfigurationBuilder().Build());
 
         var link = await service.CreatePaymentLinkAsync(order.OrderId, userId: 99);
@@ -111,8 +115,10 @@ public class SecurityAuthorizationTests
     {
         var order = SampleOrder(customerUserId: 7, paymentStatus: "Đã thanh toán");
         var service = new PaymentService(
-            new PayOS("client-id", "api-key", "checksum-key"),
+            new FakePayOsClient(),
             new FakeOrderRepository(order),
+            new FakeOrderStatusRepository(),
+            new FakeNotificationRepository(),
             new ConfigurationBuilder().Build());
 
         var status = await service.GetPaymentStatusAsync(order.OrderId, userId: 7);
@@ -480,7 +486,7 @@ public class SecurityAuthorizationTests
     }
 
     private sealed class FakeNotificationRepository(Notification? notification = null)
-        : FakeRepository<Notification>, INotificationRepository
+        : FakeRepository<Notification>, INotificationRepository, INotificationWriter
     {
         public override Task<Notification?> GetByIdAsync(int id) =>
             Task.FromResult(notification?.NotificationId == id ? notification : null);
@@ -488,6 +494,47 @@ public class SecurityAuthorizationTests
         public Task<IEnumerable<Notification>> GetByUserIdAsync(int userId) =>
             Task.FromResult<IEnumerable<Notification>>(
                 notification?.UserId == userId ? [notification] : []);
+
+        public Task<NotificationDto?> CreateAsync(int? userId, string title, string content, string type)
+        {
+            return Task.FromResult<NotificationDto?>(userId.HasValue
+                ? new NotificationDto(1, userId, title, content, type, false, DateTime.UtcNow)
+                : null);
+        }
+    }
+
+    private sealed class FakePayOsClient : IPayOsClient
+    {
+        public Task<CreatePaymentResult> CreatePaymentLinkAsync(PaymentData paymentData)
+        {
+            return Task.FromResult(new CreatePaymentResult(
+                "970422",
+                "123456789",
+                paymentData.amount,
+                paymentData.description,
+                paymentData.orderCode,
+                "VND",
+                "link-id",
+                "PENDING",
+                null,
+                "https://example.com/checkout",
+                "qr"));
+        }
+
+        public Task<PaymentLinkInformation> GetPaymentLinkInformationAsync(long orderCode)
+        {
+            return Task.FromResult(new PaymentLinkInformation(
+                "link-id",
+                orderCode,
+                50000,
+                0,
+                50000,
+                "PENDING",
+                DateTime.UtcNow.ToString("O"),
+                [],
+                null,
+                null));
+        }
     }
 
     private sealed class FakeConversationRepository(Conversation conversation)
@@ -563,7 +610,7 @@ public class SecurityAuthorizationTests
                 request.NumberOfGuests,
                 request.Note,
                 "Đang chờ",
-                request.TableId,
+                request.TableId ?? 3,
                 "Window 1"));
 
         public Task<List<ReservationDto>> GetUserReservationsAsync(int userId) => Task.FromResult<List<ReservationDto>>([]);

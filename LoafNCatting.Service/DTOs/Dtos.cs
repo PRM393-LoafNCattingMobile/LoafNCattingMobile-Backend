@@ -22,7 +22,7 @@ public record TableDto(int TableId, string TableName, int Capacity, string? Area
 public record AdminTableRequestDto(string TableName, int Capacity, string? Area, string? Description, int TableStatusId);
 public record StaffTableStatusDto(int TableStatusId);
 public record ReservationDto(int ReservationId, int? UserId, DateOnly Date, TimeOnly Time, string GuestName, string GuestPhoneNumber, int NumberOfGuests, string? Note, string StatusName, int TableId, string TableName);
-public record CreateReservationDto(int? UserId, DateOnly Date, TimeOnly Time, string GuestName, string GuestPhoneNumber, int NumberOfGuests, string? Note, int TableId);
+public record CreateReservationDto(int? UserId, DateOnly Date, TimeOnly Time, string GuestName, string GuestPhoneNumber, int NumberOfGuests, string? Note, int? TableId);
 public record StaffReservationStatusDto(int StatusId);
 public record CartItemRequestDto(int UserId, int ProductId, int Quantity);
 public record CartItemDto(ProductDto Product, int Quantity, decimal UnitPrice, decimal Subtotal);

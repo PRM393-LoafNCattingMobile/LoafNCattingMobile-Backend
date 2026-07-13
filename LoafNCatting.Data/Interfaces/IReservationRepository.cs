@@ -8,5 +8,6 @@ public interface IReservationRepository : IGenericRepository<Reservation>
     Task<IEnumerable<Reservation>> GetStaffReservationsAsync(int? statusId, DateOnly? date);
     Task<Reservation?> GetByIdWithDetailsAsync(int reservationId);
     Task<List<int>> GetUnavailableTableIdsAsync(DateOnly date, TimeOnly time);
+    Task<bool> HasActiveReservationForTableAsync(int tableId, int excludeReservationId);
 }
 

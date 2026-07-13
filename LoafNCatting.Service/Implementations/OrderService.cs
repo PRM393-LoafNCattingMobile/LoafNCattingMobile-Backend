@@ -10,7 +10,7 @@ namespace LoafNCatting.Service.Implementations;
 public class OrderService(
     IOrderRepository orders,
     IProductRepository products,
-    INotificationRepository notifications,
+    INotificationWriter notifications,
     IOrderStatusRepository orderStatuses,
     IPaymentMethodRepository paymentMethods) : IOrderService
 {
@@ -102,8 +102,12 @@ public class OrderService(
         });
 
         await orders.AddAsync(order);
-        await AddNotificationAsync(request.UserId, "Đặt món thành công", "Đơn hàng của bạn đã được tạo thành công.", "order");
         await orders.SaveChangesAsync();
+        await notifications.CreateAsync(
+            request.UserId,
+            "Đặt món thành công",
+            "Đơn hàng của bạn đã được tạo thành công.",
+            "order");
         await transaction.CommitAsync();
         return await GetOrderDtoAsync(order.OrderId);
     }
@@ -120,6 +124,12 @@ public class OrderService(
         return items.Select(CafeDtoMapper.ToOrderDto).ToList();
     }
 
+    public async Task<OrderDto?> GetStaffOrderAsync(int id)
+    {
+        var order = await orders.GetByIdWithDetailsAsync(id);
+        return order is null ? null : CafeDtoMapper.ToOrderDto(order);
+    }
+
     public async Task<OrderDto?> UpdateOrderStatusAsync(
         int id,
         int actingUserId,
@@ -129,7 +139,8 @@ public class OrderService(
         var targetStatus = await orderStatuses.GetByIdAsync(request.StatusId);
         if (order is null ||
             targetStatus is null ||
-            !CanTransition(order.OrderStatus.OrderStatusName, targetStatus.OrderStatusName))
+            !CanTransition(order.OrderStatus.OrderStatusName, targetStatus.OrderStatusName) ||
+            RequiresPaidOrder(order, targetStatus.OrderStatusName))
         {
             return null;
         }
@@ -140,6 +151,11 @@ public class OrderService(
         order.UpdatedAt = DateTime.UtcNow;
         orders.Update(order);
         await orders.SaveChangesAsync();
+        await notifications.CreateAsync(
+            order.CustomerUserId,
+            NotificationTitleForOrderStatus(targetStatus.OrderStatusName),
+            NotificationContentForOrderStatus(order.OrderId, targetStatus.OrderStatusName),
+            "order");
         return CafeDtoMapper.ToOrderDto(order);
     }
 
@@ -159,20 +175,32 @@ public class OrderService(
         };
     }
 
-    private async Task AddNotificationAsync(int? userId, string title, string content, string type)
+    private static bool RequiresPaidOrder(Order order, string targetStatus)
     {
-        if (!userId.HasValue)
-        {
-            return;
-        }
+        return targetStatus == "Đang chuẩn bị" &&
+            order.Payments.FirstOrDefault()?.PaymentStatus != "Đã thanh toán";
+    }
 
-        await notifications.AddAsync(new Notification
+    private static string NotificationTitleForOrderStatus(string statusName)
+    {
+        return statusName switch
         {
-            UserId = userId.Value,
-            Title = title,
-            Content = content,
-            Type = type
-        });
+            "Đang chuẩn bị" => "Đơn hàng đang được chuẩn bị",
+            "Hoàn thành" => "Đơn hàng đã hoàn thành",
+            "Đã hủy" => "Đơn hàng đã bị hủy",
+            _ => "Cập nhật đơn hàng"
+        };
+    }
+
+    private static string NotificationContentForOrderStatus(int orderId, string statusName)
+    {
+        return statusName switch
+        {
+            "Đang chuẩn bị" => $"Đơn #{orderId} đang được nhân viên chuẩn bị.",
+            "Hoàn thành" => $"Đơn #{orderId} đã hoàn thành.",
+            "Đã hủy" => $"Đơn #{orderId} đã bị hủy.",
+            _ => $"Đơn #{orderId} đã được cập nhật trạng thái {statusName}."
+        };
     }
 }
 

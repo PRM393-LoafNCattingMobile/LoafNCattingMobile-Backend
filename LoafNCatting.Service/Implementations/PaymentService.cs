@@ -2,14 +2,15 @@ using LoafNCatting.Data.Interfaces;
 using LoafNCatting.Service.DTOs;
 using LoafNCatting.Service.Interfaces;
 using Microsoft.Extensions.Configuration;
-using Net.payOS;
 using Net.payOS.Types;
 
 namespace LoafNCatting.Service.Implementations;
 
 public class PaymentService(
-    PayOS payOS,
+    IPayOsClient payOS,
     IOrderRepository orders,
+    IOrderStatusRepository orderStatuses,
+    INotificationWriter notifications,
     IConfiguration configuration) : IPaymentService
 {
     public async Task<PaymentLinkDto?> CreatePaymentLinkAsync(int orderId, int userId)
@@ -52,7 +53,7 @@ public class PaymentService(
         }
 
         var paymentData = new PaymentData(orderCode, amount, description, items, cancelUrl, returnUrl);
-        var result = await payOS.createPaymentLink(paymentData);
+        var result = await payOS.CreatePaymentLinkAsync(paymentData);
 
         payment.TransactionCode = orderCode.ToString();
         payment.PaymentStatus = "Đang chờ thanh toán";
@@ -89,20 +90,38 @@ public class PaymentService(
         }
 
         // Hỏi PayOS trạng thái thật của link (thay cho webhook trong môi trường dev).
-        var info = await payOS.getPaymentLinkInformation(orderCode);
+        var info = await payOS.GetPaymentLinkInformationAsync(orderCode);
 
         if (info.status == "PAID")
         {
             payment.PaymentStatus = "Đã thanh toán";
             payment.PaidAt = DateTime.UtcNow;
             await orders.SaveChangesAsync();
+            await notifications.CreateAsync(
+                order.CustomerUserId,
+                "Thanh toán thành công",
+                $"Đơn #{orderId} đã được thanh toán thành công.",
+                "payment");
             return new PaymentStatusDto(orderId, payment.PaymentStatus, order.OrderStatus.OrderStatusName, true);
         }
 
         if (info.status is "CANCELLED" or "EXPIRED")
         {
             payment.PaymentStatus = "Đã hủy";
+            if (order.OrderStatus.OrderStatusName == "Đang chờ")
+            {
+                var cancelledStatus = await orderStatuses.GetByNameAsync("Đã hủy");
+                order.OrderStatusId = cancelledStatus.OrderStatusId;
+                order.OrderStatus = cancelledStatus;
+                order.UpdatedAt = DateTime.UtcNow;
+            }
+
             await orders.SaveChangesAsync();
+            await notifications.CreateAsync(
+                order.CustomerUserId,
+                "Thanh toán chưa hoàn tất",
+                $"Thanh toán cho đơn #{orderId} đã bị hủy hoặc hết hạn.",
+                "payment");
         }
 
         return new PaymentStatusDto(orderId, payment.PaymentStatus, order.OrderStatus.OrderStatusName, false);

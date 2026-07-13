@@ -1,6 +1,8 @@
 using System.Data;
 using LoafNCatting.Data.Interfaces;
 using LoafNCatting.Data.Models;
+using LoafNCatting.Service.DTOs;
+using LoafNCatting.Service.Interfaces;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace LoafNCatting.Service.Tests;
@@ -72,14 +74,42 @@ internal sealed class FakeMessageRepository(IEnumerable<Message> messages)
         GetByConversationIdAsync(conversationId);
 }
 
-internal sealed class FakeUserRepository(User? firstStaff = null) : FakeRepository<User>, IUserRepository
+internal sealed class FakeUserRepository(User? firstStaff = null, IEnumerable<User>? users = null)
+    : FakeRepository<User>, IUserRepository
 {
+    private readonly List<User> _users = users?.ToList() ??
+        (firstStaff is null ? [] : [firstStaff]);
+
     public Task<IEnumerable<User>> GetAdminUsersAsync(int? roleId, string? search, bool? active) =>
-        Task.FromResult<IEnumerable<User>>([]);
+        Task.FromResult<IEnumerable<User>>(_users);
 
     public Task<User?> GetByIdWithRoleAsync(int id) => Task.FromResult<User?>(null);
     public Task<bool> ExistsByEmailOrPhoneAsync(string email, string phoneNumber) => Task.FromResult(false);
     public Task<User?> GetByEmailAsync(string email) => Task.FromResult<User?>(null);
     public Task<User?> GetByLoginAsync(string email, string phoneNumber) => Task.FromResult<User?>(null);
     public Task<User?> GetFirstStaffAsync() => Task.FromResult(firstStaff);
+}
+
+internal sealed class FakeNotificationWriter : INotificationWriter
+{
+    public List<NotificationDto> Items { get; } = [];
+
+    public Task<NotificationDto?> CreateAsync(int? userId, string title, string content, string type)
+    {
+        if (!userId.HasValue)
+        {
+            return Task.FromResult<NotificationDto?>(null);
+        }
+
+        var notification = new NotificationDto(
+            Items.Count + 1,
+            userId,
+            title,
+            content,
+            type,
+            false,
+            DateTime.UtcNow);
+        Items.Add(notification);
+        return Task.FromResult<NotificationDto?>(notification);
+    }
 }

@@ -3,6 +3,7 @@ using LoafNCatting.Data.Interfaces;
 using LoafNCatting.Data.Models;
 using LoafNCatting.Service.DTOs;
 using LoafNCatting.Service.Implementations;
+using LoafNCatting.Service.Interfaces;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace LoafNCatting.Service.Tests;
@@ -148,11 +149,18 @@ public class OrderServiceTests
         }
     }
 
-    private sealed class FakeNotificationRepository : FakeRepository<Notification>, INotificationRepository
+    private sealed class FakeNotificationRepository : FakeRepository<Notification>, INotificationRepository, INotificationWriter
     {
         public Task<IEnumerable<Notification>> GetByUserIdAsync(int userId)
         {
             return Task.FromResult(Enumerable.Empty<Notification>());
+        }
+
+        public Task<NotificationDto?> CreateAsync(int? userId, string title, string content, string type)
+        {
+            return Task.FromResult<NotificationDto?>(userId.HasValue
+                ? new NotificationDto(1, userId, title, content, type, false, DateTime.UtcNow)
+                : null);
         }
     }
 

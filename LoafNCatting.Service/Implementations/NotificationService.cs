@@ -2,10 +2,11 @@ using LoafNCatting.Service.DTOs;
 using LoafNCatting.Service.Interfaces;
 using LoafNCatting.Service.Mappers;
 using LoafNCatting.Data.Interfaces;
+using LoafNCatting.Data.Models;
 
 namespace LoafNCatting.Service.Implementations;
 
-public class NotificationService(INotificationRepository notifications) : INotificationService
+public class NotificationService(INotificationRepository notifications) : INotificationService, INotificationWriter
 {
     public async Task<List<NotificationDto>> GetUserNotificationsAsync(int userId)
     {
@@ -24,6 +25,26 @@ public class NotificationService(INotificationRepository notifications) : INotif
         notification.IsRead = true;
         await notifications.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<NotificationDto?> CreateAsync(int? userId, string title, string content, string type)
+    {
+        if (!userId.HasValue)
+        {
+            return null;
+        }
+
+        var notification = new Notification
+        {
+            UserId = userId.Value,
+            Title = title.Trim(),
+            Content = content.Trim(),
+            Type = type.Trim()
+        };
+
+        await notifications.AddAsync(notification);
+        await notifications.SaveChangesAsync();
+        return CafeDtoMapper.ToNotificationDto(notification);
     }
 }
 
