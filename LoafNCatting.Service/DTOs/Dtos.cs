@@ -7,6 +7,7 @@ public record RegisterRequestDto(string Name, string Email, string PhoneNumber, 
 public record LoginRequestDto(string Login, string Password);
 public record VerifyEmailRequestDto(string Email, string VerificationCode);
 public record ResendVerificationRequestDto(string Email);
+public record UpdateProfileDto(string Name, string PhoneNumber);
 public record AdminUserDto(int UserId, string Name, string Email, string PhoneNumber, string? Address, string? AvatarUrl, int RoleId, string RoleName, bool IsActive, bool IsEmailVerified, DateTime CreatedAt, DateTime? UpdatedAt, string? AvatarKey = null);
 public record AdminCreateStaffDto(string Name, string Email, string PhoneNumber, string Password, string? Address, string? AvatarUrl);
 public record AdminUserRoleDto(int RoleId);
