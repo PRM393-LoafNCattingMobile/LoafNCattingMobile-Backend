@@ -218,7 +218,7 @@ public class StaffOrderReservationServiceTests
 
         var result = await service.CreateReservationAsync(new CreateReservationDto(
             UserId: 5,
-            Date: new DateOnly(2026, 6, 30),
+            Date: DateOnly.FromDateTime(DateTime.Now.AddDays(7)),
             Time: new TimeOnly(18, 30),
             GuestName: "Customer",
             GuestPhoneNumber: "0900000000",
@@ -230,6 +230,83 @@ public class StaffOrderReservationServiceTests
         Assert.Equal(2, result.TableId);
         Assert.Equal(2, reservations.AddedReservation?.TableId);
         Assert.Equal(1, reservations.SaveCount);
+    }
+
+    [Fact]
+    public async Task CreateReservationAsync_BooksEnoughAvailableTables_ForLargeParty()
+    {
+        var reservations = new FakeReservationRepository();
+        var tableService = new FakeTableService([
+            new TableDto(2, "A2", 4, "Tầng 1", null, "Trống"),
+            new TableDto(3, "A3", 4, "Tầng 1", null, "Trống"),
+            new TableDto(4, "A4", 2, "Tầng 1", null, "Trống")
+        ]);
+        var service = CreateReservationService(
+            reservations,
+            new FakeReservationStatusRepository(new ReservationStatus
+            {
+                StatusId = 1,
+                StatusName = "Đang chờ"
+            }),
+            tableService);
+
+        var result = await service.CreateReservationAsync(new CreateReservationDto(
+            UserId: 5,
+            Date: DateOnly.FromDateTime(DateTime.Now.AddDays(7)),
+            Time: new TimeOnly(18, 30),
+            GuestName: "Customer",
+            GuestPhoneNumber: "0900000000",
+            NumberOfGuests: 7,
+            Note: null,
+            TableId: null));
+
+        Assert.NotNull(result);
+        Assert.Equal([2, 3], reservations.AddedReservations.Select(reservation => reservation.TableId));
+        Assert.All(reservations.AddedReservations, reservation =>
+        {
+            Assert.Equal(5, reservation.UserId);
+            Assert.Equal(7, reservation.NumberOfGuests);
+        });
+        Assert.Equal(1, reservations.SaveCount);
+    }
+
+    [Fact]
+    public async Task CreateReservationAsync_NotifiesActiveStaffUsers()
+    {
+        var notifications = new FakeNotificationRepository();
+        var service = CreateReservationService(
+            new FakeReservationRepository(),
+            new FakeReservationStatusRepository(new ReservationStatus
+            {
+                StatusId = 1,
+                StatusName = "Đang chờ"
+            }),
+            new FakeTableService([
+                new TableDto(2, "A2", 2, "Tầng 1", null, "Trống")
+            ]),
+            notifications: notifications,
+            users: new FakeUserRepository(
+                TestUser(20, "Staff"),
+                TestUser(21, "Admin"),
+                TestUser(22, "Staff", isActive: false)));
+
+        var result = await service.CreateReservationAsync(new CreateReservationDto(
+            UserId: 5,
+            Date: DateOnly.FromDateTime(DateTime.Now.AddDays(7)),
+            Time: new TimeOnly(18, 30),
+            GuestName: "Customer",
+            GuestPhoneNumber: "0900000000",
+            NumberOfGuests: 2,
+            Note: null,
+            TableId: null));
+
+        Assert.NotNull(result);
+        Assert.Contains(notifications.Notifications, item =>
+            item.UserId == 20 &&
+            item.Type == "reservation" &&
+            item.Title.Contains("đặt bàn", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(notifications.Notifications, item => item.UserId == 21);
+        Assert.DoesNotContain(notifications.Notifications, item => item.UserId == 22);
     }
 
     [Fact]
@@ -283,17 +360,20 @@ public class StaffOrderReservationServiceTests
         IReservationRepository reservations,
         IReservationStatusRepository statuses,
         FakeTableService? tableService = null,
-        FakeTableRepository? tableRepository = null)
+        FakeTableRepository? tableRepository = null,
+        FakeNotificationRepository? notifications = null,
+        IUserRepository? users = null)
     {
         return new ReservationService(
             reservations,
             statuses,
-            new FakeNotificationRepository(),
+            notifications ?? new FakeNotificationRepository(),
             tableService ?? new FakeTableService(),
             tableRepository ?? new FakeTableRepository(),
             new FakeTableStatusRepository(
                 new TableStatus { TableStatusId = 1, StatusName = "Trống" },
-                new TableStatus { TableStatusId = 2, StatusName = "Đã đặt" }));
+                new TableStatus { TableStatusId = 2, StatusName = "Đã đặt" }),
+            users);
     }
 
     private static Order SampleOrder(string statusName, int statusId, string paymentStatus = "Đã thanh toán") => new()
@@ -351,6 +431,16 @@ public class StaffOrderReservationServiceTests
         Table = new RestaurantTable { TableId = 3, TableName = "A3" }
     };
 
+    private static User TestUser(int userId, string roleName, bool isActive = true) => new()
+    {
+        UserId = userId,
+        Name = $"{roleName} {userId}",
+        Email = $"{roleName.ToLowerInvariant()}{userId}@example.com",
+        PhoneNumber = $"0900000{userId}",
+        Role = new Role { RoleName = roleName },
+        IsActive = isActive
+    };
+
     private sealed class FakeOrderRepository(Order order) : FakeRepository<Order>, IOrderRepository
     {
         public int? LastStatusId { get; private set; }
@@ -392,11 +482,12 @@ public class StaffOrderReservationServiceTests
         public int? LastStatusId { get; private set; }
         public DateOnly? LastDate { get; private set; }
         public Reservation? AddedReservation { get; private set; }
+        public List<Reservation> AddedReservations { get; } = [];
         public bool HasActiveReservationForTableResult { get; set; }
 
         public override Task AddAsync(Reservation entity)
         {
-            entity.ReservationId = 100;
+            entity.ReservationId = 100 + AddedReservations.Count;
             entity.Table = new RestaurantTable
             {
                 TableId = entity.TableId,
@@ -404,6 +495,7 @@ public class StaffOrderReservationServiceTests
                 TableStatus = new TableStatus { TableStatusId = 1, StatusName = "Trống" }
             };
             AddedReservation = entity;
+            AddedReservations.Add(entity);
             return Task.CompletedTask;
         }
 
@@ -425,7 +517,7 @@ public class StaffOrderReservationServiceTests
                     ? reservation
                     : AddedReservation?.ReservationId == reservationId
                         ? AddedReservation
-                        : null);
+                        : AddedReservations.FirstOrDefault(item => item.ReservationId == reservationId));
 
         public Task<List<int>> GetUnavailableTableIdsAsync(DateOnly date, TimeOnly time) =>
             Task.FromResult<List<int>>([]);
@@ -462,15 +554,58 @@ public class StaffOrderReservationServiceTests
     private sealed class FakeNotificationRepository
         : FakeRepository<Notification>, INotificationRepository, INotificationWriter
     {
+        public List<NotificationDto> Notifications { get; } = [];
+
         public Task<IEnumerable<Notification>> GetByUserIdAsync(int userId) =>
             Task.FromResult<IEnumerable<Notification>>([]);
 
         public Task<NotificationDto?> CreateAsync(int? userId, string title, string content, string type)
         {
-            return Task.FromResult<NotificationDto?>(userId.HasValue
-                ? new NotificationDto(1, userId, title, content, type, false, DateTime.UtcNow)
-                : null);
+            if (!userId.HasValue)
+            {
+                return Task.FromResult<NotificationDto?>(null);
+            }
+
+            var notification = new NotificationDto(
+                Notifications.Count + 1,
+                userId,
+                title,
+                content,
+                type,
+                false,
+                DateTime.UtcNow);
+            Notifications.Add(notification);
+            return Task.FromResult<NotificationDto?>(notification);
         }
+    }
+
+    private sealed class FakeUserRepository(params User[] users) : FakeRepository<User>, IUserRepository
+    {
+        public Task<IEnumerable<User>> GetAdminUsersAsync(int? roleId, string? search, bool? active)
+        {
+            var query = users.AsEnumerable();
+            if (active.HasValue)
+            {
+                query = query.Where(user => user.IsActive == active.Value);
+            }
+
+            return Task.FromResult(query);
+        }
+
+        public Task<User?> GetByIdWithRoleAsync(int id) =>
+            Task.FromResult(users.FirstOrDefault(user => user.UserId == id));
+
+        public Task<bool> ExistsByEmailOrPhoneAsync(string email, string phoneNumber) =>
+            Task.FromResult(users.Any(user => user.Email == email || user.PhoneNumber == phoneNumber));
+
+        public Task<User?> GetByEmailAsync(string email) =>
+            Task.FromResult(users.FirstOrDefault(user => user.Email == email));
+
+        public Task<User?> GetByLoginAsync(string login, string phoneNumber) =>
+            Task.FromResult(users.FirstOrDefault(user => user.Email == login || user.PhoneNumber == phoneNumber));
+
+        public Task<User?> GetFirstStaffAsync() =>
+            Task.FromResult(users.FirstOrDefault(user => user.Role.RoleName == "Staff"));
     }
 
     private sealed class FakePaymentMethodRepository

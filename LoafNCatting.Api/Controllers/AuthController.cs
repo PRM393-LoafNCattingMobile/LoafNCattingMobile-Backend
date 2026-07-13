@@ -71,6 +71,20 @@ public class AuthController(IAuthService service, ISessionTokenService sessions)
         return NoContent();
     }
 
+    [HttpPatch("profile")]
+    public async Task<ActionResult<AuthResponseDto>> UpdateProfile(UpdateProfileDto request)
+    {
+        if (!SessionAuthorization.TryRequireSession(Request, sessions, out var session, out var failure))
+        {
+            return failure!;
+        }
+
+        var updated = await service.UpdateProfileAsync(session!.UserId, request, ReadToken());
+        return updated is null
+            ? BadRequest(new { message = "Profile could not be updated. Check name and phone number." })
+            : Ok(updated);
+    }
+
     [HttpPatch("avatar")]
     public async Task<ActionResult<AuthResponseDto>> UpdateAvatar(UpdateAvatarDto request)
     {
