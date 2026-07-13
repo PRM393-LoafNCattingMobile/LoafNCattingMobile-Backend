@@ -218,7 +218,7 @@ public class StaffOrderReservationServiceTests
 
         var result = await service.CreateReservationAsync(new CreateReservationDto(
             UserId: 5,
-            Date: new DateOnly(2026, 6, 30),
+            Date: DateOnly.FromDateTime(DateTime.Now.AddDays(7)),
             Time: new TimeOnly(18, 30),
             GuestName: "Customer",
             GuestPhoneNumber: "0900000000",
@@ -229,6 +229,44 @@ public class StaffOrderReservationServiceTests
         Assert.NotNull(result);
         Assert.Equal(2, result.TableId);
         Assert.Equal(2, reservations.AddedReservation?.TableId);
+        Assert.Equal(1, reservations.SaveCount);
+    }
+
+    [Fact]
+    public async Task CreateReservationAsync_BooksEnoughAvailableTables_ForLargeParty()
+    {
+        var reservations = new FakeReservationRepository();
+        var tableService = new FakeTableService([
+            new TableDto(2, "A2", 4, "Tầng 1", null, "Trống"),
+            new TableDto(3, "A3", 4, "Tầng 1", null, "Trống"),
+            new TableDto(4, "A4", 2, "Tầng 1", null, "Trống")
+        ]);
+        var service = CreateReservationService(
+            reservations,
+            new FakeReservationStatusRepository(new ReservationStatus
+            {
+                StatusId = 1,
+                StatusName = "Đang chờ"
+            }),
+            tableService);
+
+        var result = await service.CreateReservationAsync(new CreateReservationDto(
+            UserId: 5,
+            Date: DateOnly.FromDateTime(DateTime.Now.AddDays(7)),
+            Time: new TimeOnly(18, 30),
+            GuestName: "Customer",
+            GuestPhoneNumber: "0900000000",
+            NumberOfGuests: 7,
+            Note: null,
+            TableId: null));
+
+        Assert.NotNull(result);
+        Assert.Equal([2, 3], reservations.AddedReservations.Select(reservation => reservation.TableId));
+        Assert.All(reservations.AddedReservations, reservation =>
+        {
+            Assert.Equal(5, reservation.UserId);
+            Assert.Equal(7, reservation.NumberOfGuests);
+        });
         Assert.Equal(1, reservations.SaveCount);
     }
 
@@ -254,7 +292,7 @@ public class StaffOrderReservationServiceTests
 
         var result = await service.CreateReservationAsync(new CreateReservationDto(
             UserId: 5,
-            Date: new DateOnly(2026, 6, 30),
+            Date: DateOnly.FromDateTime(DateTime.Now.AddDays(7)),
             Time: new TimeOnly(18, 30),
             GuestName: "Customer",
             GuestPhoneNumber: "0900000000",
@@ -444,11 +482,12 @@ public class StaffOrderReservationServiceTests
         public int? LastStatusId { get; private set; }
         public DateOnly? LastDate { get; private set; }
         public Reservation? AddedReservation { get; private set; }
+        public List<Reservation> AddedReservations { get; } = [];
         public bool HasActiveReservationForTableResult { get; set; }
 
         public override Task AddAsync(Reservation entity)
         {
-            entity.ReservationId = 100;
+            entity.ReservationId = 100 + AddedReservations.Count;
             entity.Table = new RestaurantTable
             {
                 TableId = entity.TableId,
@@ -456,6 +495,7 @@ public class StaffOrderReservationServiceTests
                 TableStatus = new TableStatus { TableStatusId = 1, StatusName = "Trống" }
             };
             AddedReservation = entity;
+            AddedReservations.Add(entity);
             return Task.CompletedTask;
         }
 
@@ -477,7 +517,7 @@ public class StaffOrderReservationServiceTests
                     ? reservation
                     : AddedReservation?.ReservationId == reservationId
                         ? AddedReservation
-                        : null);
+                        : AddedReservations.FirstOrDefault(item => item.ReservationId == reservationId));
 
         public Task<List<int>> GetUnavailableTableIdsAsync(DateOnly date, TimeOnly time) =>
             Task.FromResult<List<int>>([]);

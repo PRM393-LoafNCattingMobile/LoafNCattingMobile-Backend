@@ -17,32 +17,40 @@ public class ReservationService(
 {
     public async Task<ReservationDto?> CreateReservationAsync(CreateReservationDto request)
     {
-        var available = await tableService.GetAvailableTablesAsync(request.Date, request.Time, request.NumberOfGuests);
-        var assignedTable = request.TableId.HasValue
-            ? available.FirstOrDefault(table => table.TableId == request.TableId.Value)
-            : available.FirstOrDefault();
+        if (request.Date.ToDateTime(request.Time) <= DateTime.Now)
+        {
+            return null;
+        }
 
-        if (assignedTable is null)
+        var available = await tableService.GetAvailableTablesAsync(request.Date, request.Time, guestCount: 1);
+        var assignedTables = SelectTablesForGuests(available, request.NumberOfGuests, request.TableId);
+        if (assignedTables.Count == 0)
         {
             return null;
         }
 
         var status = await reservationStatuses.GetByNameAsync("Đang chờ");
-        var reservation = new Reservation
+        Reservation? primaryReservation = null;
+        foreach (var assignedTable in assignedTables)
         {
-            UserId = request.UserId,
-            Date = request.Date,
-            Time = request.Time,
-            GuestName = request.GuestName.Trim(),
-            GuestPhoneNumber = request.GuestPhoneNumber.Trim(),
-            NumberOfGuests = request.NumberOfGuests,
-            Note = request.Note,
-            StatusId = status.StatusId,
-            Status = status,
-            TableId = assignedTable.TableId
-        };
+            var reservation = new Reservation
+            {
+                UserId = request.UserId,
+                Date = request.Date,
+                Time = request.Time,
+                GuestName = request.GuestName.Trim(),
+                GuestPhoneNumber = request.GuestPhoneNumber.Trim(),
+                NumberOfGuests = request.NumberOfGuests,
+                Note = request.Note,
+                StatusId = status.StatusId,
+                Status = status,
+                TableId = assignedTable.TableId
+            };
 
-        await reservations.AddAsync(reservation);
+            await reservations.AddAsync(reservation);
+            primaryReservation ??= reservation;
+        }
+
         await reservations.SaveChangesAsync();
         await notifications.CreateAsync(
             request.UserId,
@@ -51,9 +59,9 @@ public class ReservationService(
             "reservation");
         await NotifyStaffUsersAsync(
             "Đặt bàn mới",
-            $"Khách hàng #{request.UserId} vừa tạo lịch đặt bàn #{reservation.ReservationId}.",
+            $"Khách hàng #{request.UserId} vừa tạo lịch đặt bàn #{primaryReservation!.ReservationId}.",
             "reservation");
-        return await GetReservationDtoAsync(reservation.ReservationId);
+        return await GetReservationDtoAsync(primaryReservation.ReservationId);
     }
 
     public async Task<List<ReservationDto>> GetUserReservationsAsync(int userId)
@@ -101,6 +109,58 @@ public class ReservationService(
     {
         var reservation = await reservations.GetByIdWithDetailsAsync(reservationId);
         return reservation is null ? null : CafeDtoMapper.ToReservationDto(reservation);
+    }
+
+    private static List<TableDto> SelectTablesForGuests(
+        IEnumerable<TableDto> availableTables,
+        int guestCount,
+        int? requestedTableId)
+    {
+        var available = availableTables.ToList();
+        if (requestedTableId.HasValue)
+        {
+            var requested = available.FirstOrDefault(table => table.TableId == requestedTableId.Value);
+            if (requested is null)
+            {
+                return [];
+            }
+
+            return CompleteTableSelection(
+                [requested],
+                available.Where(table => table.TableId != requested.TableId),
+                guestCount);
+        }
+
+        var singleTable = available
+            .Where(table => table.Capacity >= guestCount)
+            .OrderBy(table => table.Capacity)
+            .FirstOrDefault();
+        if (singleTable is not null)
+        {
+            return [singleTable];
+        }
+
+        return CompleteTableSelection([], available, guestCount);
+    }
+
+    private static List<TableDto> CompleteTableSelection(
+        List<TableDto> selectedTables,
+        IEnumerable<TableDto> remainingTables,
+        int guestCount)
+    {
+        var totalCapacity = selectedTables.Sum(table => table.Capacity);
+        foreach (var table in remainingTables.OrderByDescending(table => table.Capacity))
+        {
+            if (totalCapacity >= guestCount)
+            {
+                break;
+            }
+
+            selectedTables.Add(table);
+            totalCapacity += table.Capacity;
+        }
+
+        return totalCapacity >= guestCount ? selectedTables : [];
     }
 
     private async Task SyncTableStatusAsync(Reservation reservation, string reservationStatus)
