@@ -12,7 +12,8 @@ public class ReservationService(
     INotificationWriter notifications,
     ITableService tableService,
     IRestaurantTableRepository tables,
-    ITableStatusRepository tableStatuses) : IReservationService
+    ITableStatusRepository tableStatuses,
+    IUserRepository? users = null) : IReservationService
 {
     public async Task<ReservationDto?> CreateReservationAsync(CreateReservationDto request)
     {
@@ -47,6 +48,10 @@ public class ReservationService(
             request.UserId,
             "Đã nhận đặt bàn",
             "Lịch đặt bàn của bạn đang chờ xác nhận.",
+            "reservation");
+        await NotifyStaffUsersAsync(
+            "Đặt bàn mới",
+            $"Khách hàng #{request.UserId} vừa tạo lịch đặt bàn #{reservation.ReservationId}.",
             "reservation");
         return await GetReservationDtoAsync(reservation.ReservationId);
     }
@@ -139,6 +144,25 @@ public class ReservationService(
         var statuses = await tableStatuses.GetAllAsync();
         return statuses.FirstOrDefault(status =>
             string.Equals(status.StatusName, statusName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task NotifyStaffUsersAsync(string title, string content, string type)
+    {
+        if (users is null)
+        {
+            return;
+        }
+
+        var staffUsers = await users.GetAdminUsersAsync(roleId: null, search: null, active: true);
+        foreach (var staff in staffUsers.Where(IsStaffUser))
+        {
+            await notifications.CreateAsync(staff.UserId, title, content, type);
+        }
+    }
+
+    private static bool IsStaffUser(User user)
+    {
+        return string.Equals(user.Role?.RoleName, "Staff", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NotificationTitleForReservationStatus(string statusName)

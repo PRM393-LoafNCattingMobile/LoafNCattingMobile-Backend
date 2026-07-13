@@ -58,6 +58,39 @@ public class OrderServiceTests
     }
 
     [Fact]
+    public async Task CreateOrderAsync_NotifiesActiveStaffUsers()
+    {
+        var product = TestProduct(unitInStock: 3);
+        var notifications = new FakeNotificationRepository();
+        var service = CreateService(
+            new FakeOrderRepository(),
+            new FakeProductRepository(product),
+            notifications: notifications,
+            users: new FakeUserRepository(
+                TestUser(20, "Staff"),
+                TestUser(21, "Admin"),
+                TestUser(22, "Staff", isActive: false)));
+        var request = new CreateOrderRequestDto(
+            7,
+            null,
+            null,
+            "Mang di",
+            null,
+            "Tien mat",
+            [new OrderItemRequestDto(product.ProductId, 1)]);
+
+        var order = await service.CreateOrderAsync(request);
+
+        Assert.NotNull(order);
+        Assert.Contains(notifications.Items, item =>
+            item.UserId == 20 &&
+            item.Type == "order" &&
+            item.Title.Contains("đơn", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(notifications.Items, item => item.UserId == 21);
+        Assert.DoesNotContain(notifications.Items, item => item.UserId == 22);
+    }
+
+    [Fact]
     public async Task CreateOrderAsync_RejectsNewOrder_WhenUserHasPendingPaymentOrder()
     {
         var product = TestProduct(unitInStock: 3);
@@ -139,15 +172,18 @@ public class OrderServiceTests
     private static OrderService CreateService(
         IOrderRepository orders,
         IProductRepository products,
-        IConfiguration? configuration = null)
+        IConfiguration? configuration = null,
+        FakeNotificationRepository? notifications = null,
+        IUserRepository? users = null)
     {
         return new OrderService(
             orders,
             products,
-            new FakeNotificationRepository(),
+            notifications ?? new FakeNotificationRepository(),
             new FakeOrderStatusRepository(),
             new FakePaymentMethodRepository(),
-            configuration);
+            configuration,
+            users);
     }
 
     private static Product TestProduct(int unitInStock) => new()
@@ -159,6 +195,16 @@ public class OrderServiceTests
         CategoryId = 3,
         Category = new Category { CategoryId = 3, Name = "Drinks" },
         IsAvailable = true
+    };
+
+    private static User TestUser(int userId, string roleName, bool isActive = true) => new()
+    {
+        UserId = userId,
+        Name = $"{roleName} {userId}",
+        Email = $"{roleName.ToLowerInvariant()}{userId}@example.com",
+        PhoneNumber = $"0900000{userId}",
+        Role = new Role { RoleName = roleName },
+        IsActive = isActive
     };
 
     private sealed class FakeOrderRepository : FakeRepository<Order>, IOrderRepository
@@ -261,6 +307,8 @@ public class OrderServiceTests
 
     private sealed class FakeNotificationRepository : FakeRepository<Notification>, INotificationRepository, INotificationWriter
     {
+        public List<NotificationDto> Items { get; } = [];
+
         public Task<IEnumerable<Notification>> GetByUserIdAsync(int userId)
         {
             return Task.FromResult(Enumerable.Empty<Notification>());
@@ -268,10 +316,44 @@ public class OrderServiceTests
 
         public Task<NotificationDto?> CreateAsync(int? userId, string title, string content, string type)
         {
-            return Task.FromResult<NotificationDto?>(userId.HasValue
-                ? new NotificationDto(1, userId, title, content, type, false, DateTime.UtcNow)
-                : null);
+            if (!userId.HasValue)
+            {
+                return Task.FromResult<NotificationDto?>(null);
+            }
+
+            var notification = new NotificationDto(Items.Count + 1, userId, title, content, type, false, DateTime.UtcNow);
+            Items.Add(notification);
+            return Task.FromResult<NotificationDto?>(notification);
         }
+    }
+
+    private sealed class FakeUserRepository(params User[] users) : FakeRepository<User>, IUserRepository
+    {
+        public Task<IEnumerable<User>> GetAdminUsersAsync(int? roleId, string? search, bool? active)
+        {
+            var query = users.AsEnumerable();
+            if (active.HasValue)
+            {
+                query = query.Where(user => user.IsActive == active.Value);
+            }
+
+            return Task.FromResult(query);
+        }
+
+        public Task<User?> GetByIdWithRoleAsync(int id) =>
+            Task.FromResult(users.FirstOrDefault(user => user.UserId == id));
+
+        public Task<bool> ExistsByEmailOrPhoneAsync(string email, string phoneNumber) =>
+            Task.FromResult(users.Any(user => user.Email == email || user.PhoneNumber == phoneNumber));
+
+        public Task<User?> GetByEmailAsync(string email) =>
+            Task.FromResult(users.FirstOrDefault(user => user.Email == email));
+
+        public Task<User?> GetByLoginAsync(string login, string phoneNumber) =>
+            Task.FromResult(users.FirstOrDefault(user => user.Email == login || user.PhoneNumber == phoneNumber));
+
+        public Task<User?> GetFirstStaffAsync() =>
+            Task.FromResult(users.FirstOrDefault(user => user.Role.RoleName == "Staff"));
     }
 
     private sealed class FakeOrderStatusRepository : FakeRepository<OrderStatus>, IOrderStatusRepository

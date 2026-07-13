@@ -129,6 +129,33 @@ public class AuthService(
         return Task.CompletedTask;
     }
 
+    public async Task<AuthResponseDto?> UpdateProfileAsync(int userId, UpdateProfileDto request, string token)
+    {
+        var user = await users.GetByIdWithRoleAsync(userId);
+        var name = request.Name.Trim();
+        var phoneNumber = request.PhoneNumber.Trim();
+        if (user is null || !user.IsActive || string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(phoneNumber))
+        {
+            return null;
+        }
+
+        var existingUsers = await users.GetAdminUsersAsync(roleId: null, search: null, active: null);
+        if (existingUsers.Any(item =>
+                item.UserId != userId &&
+                string.Equals(item.PhoneNumber, phoneNumber, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        user.Name = name;
+        user.PhoneNumber = phoneNumber;
+        user.UpdatedAt = DateTime.UtcNow;
+        users.Update(user);
+        await users.SaveChangesAsync();
+
+        return ToAuthResponse(user, token);
+    }
+
     public async Task<AuthResponseDto?> UpdateAvatarAsync(int userId, string? s3Key, string token)
     {
         var user = await users.GetByIdWithRoleAsync(userId);

@@ -14,7 +14,8 @@ public class OrderService(
     INotificationWriter notifications,
     IOrderStatusRepository orderStatuses,
     IPaymentMethodRepository paymentMethods,
-    IConfiguration? configuration = null) : IOrderService
+    IConfiguration? configuration = null,
+    IUserRepository? users = null) : IOrderService
 {
     public async Task<OrderDto?> CreateOrderAsync(CreateOrderRequestDto request)
     {
@@ -115,6 +116,10 @@ public class OrderService(
             request.UserId,
             "Đặt món thành công",
             "Đơn hàng của bạn đã được tạo thành công.",
+            "order");
+        await NotifyStaffUsersAsync(
+            "Đơn hàng mới",
+            $"Khách hàng #{request.UserId} vừa tạo đơn #{order.OrderId}.",
             "order");
         await transaction.CommitAsync();
         return await GetOrderDtoAsync(order.OrderId);
@@ -229,6 +234,25 @@ public class OrderService(
     {
         var order = await orders.GetByIdWithDetailsAsync(orderId);
         return order is null ? null : CafeDtoMapper.ToOrderDto(order);
+    }
+
+    private async Task NotifyStaffUsersAsync(string title, string content, string type)
+    {
+        if (users is null)
+        {
+            return;
+        }
+
+        var staffUsers = await users.GetAdminUsersAsync(roleId: null, search: null, active: true);
+        foreach (var staff in staffUsers.Where(IsStaffUser))
+        {
+            await notifications.CreateAsync(staff.UserId, title, content, type);
+        }
+    }
+
+    private static bool IsStaffUser(User user)
+    {
+        return string.Equals(user.Role?.RoleName, "Staff", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool CanTransition(string currentStatus, string targetStatus)
