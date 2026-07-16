@@ -83,7 +83,8 @@ public class MessageService(
             ConversationId = request.ConversationId,
             SenderUserId = request.SenderUserId,
             Content = request.Content.Trim(),
-            IsRead = false
+            IsRead = false,
+            SentAt = DateTime.UtcNow
         });
         conversation.UpdatedAt = DateTime.UtcNow;
 
@@ -113,7 +114,8 @@ public class MessageService(
             ConversationId = conversationId,
             SenderUserId = staffUserId,
             Content = request.Content.Trim(),
-            IsRead = false
+            IsRead = false,
+            SentAt = DateTime.UtcNow
         });
 
         conversation.UpdatedAt = DateTime.UtcNow;

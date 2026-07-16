@@ -68,6 +68,12 @@ public class OrderService(
             return null;
         }
 
+        if (!IsSupportedPaymentMethod(request.PaymentMethod))
+        {
+            await transaction.RollbackAsync();
+            return null;
+        }
+
         var status = await orderStatuses.GetByNameAsync("Đang chờ");
         var method = await paymentMethods.GetByNameOrDefaultAsync(request.PaymentMethod);
 
@@ -78,7 +84,9 @@ public class OrderService(
             ReservationId = request.ReservationId,
             OrderType = request.OrderType,
             Note = request.Note,
-            OrderStatusId = status.OrderStatusId
+            OrderStatusId = status.OrderStatusId,
+            OrderDate = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
         };
 
         foreach (var item in requestedItems)
@@ -99,14 +107,15 @@ public class OrderService(
         order.TotalPrice = order.OrderDetails.Sum(item => item.Subtotal);
 
         // Đơn chuyển khoản đi qua PayOS nên để trạng thái "Đang chờ thanh toán";
-        // các phương thức còn lại (tiền mặt...) coi như đã thanh toán ngay như demo cũ.
-        var requiresOnlinePayment = method.MethodName.Contains("Chuyển khoản", StringComparison.OrdinalIgnoreCase);
+        // chỉ tiền mặt được ghi nhận đã thanh toán ngay tại quầy.
+        var requiresOnlinePayment = IsBankTransferPayment(request.PaymentMethod);
         order.Payments.Add(new Payment
         {
             PaymentAmount = order.TotalPrice,
             MethodId = method.MethodId,
             PaymentStatus = requiresOnlinePayment ? "Đang chờ thanh toán" : "Đã thanh toán",
             TransactionCode = requiresOnlinePayment ? null : $"DEMO-{DateTime.UtcNow:yyyyMMddHHmmss}",
+            PaymentDate = DateTime.UtcNow,
             PaidAt = requiresOnlinePayment ? null : DateTime.UtcNow
         });
 
@@ -269,6 +278,26 @@ public class OrderService(
     {
         return targetStatus == "Đang chuẩn bị" &&
             order.Payments.FirstOrDefault()?.PaymentStatus != "Đã thanh toán";
+    }
+
+    private static bool IsSupportedPaymentMethod(string? paymentMethod)
+    {
+        if (string.IsNullOrWhiteSpace(paymentMethod))
+        {
+            return false;
+        }
+
+        return IsCashPayment(paymentMethod) || IsBankTransferPayment(paymentMethod);
+    }
+
+    private static bool IsCashPayment(string paymentMethod)
+    {
+        return paymentMethod.Contains("Tiền mặt", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsBankTransferPayment(string paymentMethod)
+    {
+        return paymentMethod.Contains("Chuyển khoản", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NotificationTitleForOrderStatus(string statusName)
